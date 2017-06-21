@@ -21,7 +21,7 @@ use md, only: positions_bcc, positions_fcc
 use arpack, only: peig, eig
 use pksdft_fft, only: solve_schroedinger
 use xc, only: xc_pz
-use mixings, only: mixing_linear
+use mixings, only: mixing_linear, mixing_anderson
 use ewald_sums, only: ewald_box
 use efermi, only: fermi_dirac_smearing
 implicit none
@@ -287,7 +287,9 @@ ncv = arpack_ncv
 allocate(eigs(nev), orbitals(Ng_local(1),Ng_local(2),Ng_local(3),nev))
 Vee_xc = 0
 it = 0
-call mixing_linear(Ffunc, integral, reshape(Vee_xc, [product(Ng_local)]), &
+!call mixing_anderson &
+call mixing_linear &
+    (Ffunc, integral, reshape(Vee_xc, [product(Ng_local)]), &
     nband, scf_max_iter, scf_alpha, scf_L2_eps, scf_eig_eps, tmp)
 Vee_xc = reshape(tmp, [Ng_local(1),Ng_local(2),Ng_local(3)])
 
