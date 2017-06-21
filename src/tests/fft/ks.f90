@@ -282,8 +282,8 @@ nev = nband
 ncv = arpack_ncv
 allocate(eigs(nev), orbitals(Ng_local(1),Ng_local(2),Ng_local(3),nev))
 Vee_xc = 0
-call mixing_linear(Ffunc, reshape(Vee_xc, [product(Ng_local)]), &
-    1, scf_iter, 0.3_dp, tmp)
+call mixing_linear(Ffunc, integral, reshape(Vee_xc, [product(Ng_local)]), &
+    nband, scf_iter+100, 0.3_dp, 1e-12_dp, tmp)
 Vee_xc = reshape(tmp, [Ng_local(1),Ng_local(2),Ng_local(3)])
 
 if (myid == 0) call save_eigs_json("output.json", eigs, occ)
@@ -360,10 +360,18 @@ contains
     !    print *, "Density norm:", norm
     !end if
 
-    energies(1) = Etot
+    energies = eigs(:nband)
     y = reshape(Vee + Vxc, [product(Ng_local)])
-
     end subroutine
+
+
+    real(dp) function integral(x)
+    ! Computes the integral of the vector 'x'
+    real(dp), intent(in) :: x(:)
+    integral = pintegral(comm_all, L, &
+        reshape(x, [Ng_local(1),Ng_local(2),Ng_local(3)]), Ng)
+    end function
+
 
     subroutine read_input(nproc, Ng, nsub, T, dt, Ecut, nband, arpack_ncv, &
             scf_iter)
