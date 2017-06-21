@@ -316,12 +316,6 @@ contains
     Veff = Vloc + reshape(x, [Ng_local(1),Ng_local(2),Ng_local(3)])
     call solve_schroedinger(myid, comm_all, commy, commz, Ng, nsub, Veff, &
             L, G2, cutfn, nev, ncv, eigs, orbitals)
-    if (myid == 0) then
-        print *, "n E"
-        do i = 1, nev
-            print *, i, eigs(i)
-        end do
-    end if
 
     sigma = T_au
     call fermi_dirac_smearing(eigs, sigma, real(nelec, dp), mu, occ)
