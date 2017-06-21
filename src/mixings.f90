@@ -27,15 +27,15 @@ end interface
 
 contains
 
-subroutine mixing_linear(F, integral, x0, nenergies, max_iter, alpha, eps, &
-        x_out)
+subroutine mixing_linear(F, integral, x0, nenergies, max_iter, alpha, &
+        L2_eps, eig_eps, x_out)
 ! Finds "x" so that F(x) = x
 procedure(F_fn) :: F
 procedure(integral_fn) :: integral
 real(dp), intent(in) :: x0(:)
 integer, intent(in) :: nenergies, max_iter
 real(dp), intent(in) :: alpha
-real(dp), intent(in) :: eps
+real(dp), intent(in) :: L2_eps, eig_eps
 real(dp), intent(out) :: x_out(:)
 
 real(dp), dimension(size(x0)) :: x_i, y_i, R_i
@@ -58,8 +58,8 @@ do i = 1, max_iter
     L2_err = R_i_norm / x_i_norm
     err = maxval(abs(energies - old_energies))
     ! Do at least 3 iterations
-    if (i >= 3 .and. L2_err < 5e-5_dp) then
-        if (err < eps .and. err_old < eps) then
+    if (i >= 3 .and. L2_err < L2_eps) then
+        if (err < eig_eps .and. err_old < eig_eps) then
             x_out = x_i
             return
         end if
