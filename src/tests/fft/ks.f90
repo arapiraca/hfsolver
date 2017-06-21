@@ -44,7 +44,7 @@ real(dp) :: T_au, dt, alpha, rho, norm, w2, Vmin, Ekin, Etot, &
     Eee, Een_loc, E_xc, Enn, Een_core, G2cut, G2cut2
 real(dp) :: rloc, C1, C2, Zion, Ecut
 real(dp), allocatable :: m(:)
-integer :: nev, ncv, arpack_ncv, na, scf_iter
+integer :: nev, ncv, arpack_ncv, na, scf_iter, it
 real(dp), parameter :: D(5) = [0.65435_dp, 2.45106_dp, -1.536643785333E-01_dp, &
     1.153664378533E+00_dp, 5.0000_dp]
 
@@ -282,6 +282,7 @@ nev = nband
 ncv = arpack_ncv
 allocate(eigs(nev), orbitals(Ng_local(1),Ng_local(2),Ng_local(3),nev))
 Vee_xc = 0
+it = 0
 call mixing_linear(Ffunc, integral, reshape(Vee_xc, [product(Ng_local)]), &
     nband, scf_iter+100, 0.3_dp, 1e-12_dp, tmp)
 Vee_xc = reshape(tmp, [Ng_local(1),Ng_local(2),Ng_local(3)])
@@ -300,17 +301,21 @@ contains
     real(dp), intent(in) :: x(:)
     real(dp), intent(out) :: y(:), energies(:)
     real(dp) :: mu, sigma
+    it = it + 1
+    if (myid == 0) then
+        print *, "Starting SCF iteration:", it
+    end if
 
     ! Schroedinger:
     Veff = Vloc + reshape(x, [Ng_local(1),Ng_local(2),Ng_local(3)])
     call solve_schroedinger(myid, comm_all, commy, commz, Ng, nsub, Veff, &
             L, G2, cutfn, nev, ncv, eigs, orbitals)
-    !if (myid == 0) then
-    !    print *, "n E"
-    !    do i = 1, nev
-    !        print *, i, eigs(i)
-    !    end do
-    !end if
+    if (myid == 0) then
+        print *, "n E"
+        do i = 1, nev
+            print *, i, eigs(i)
+        end do
+    end if
 
     sigma = T_au
     call fermi_dirac_smearing(eigs, sigma, real(nelec, dp), mu, occ)
