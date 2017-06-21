@@ -21,7 +21,7 @@ use md, only: positions_bcc, positions_fcc
 use arpack, only: peig, eig
 use pksdft_fft, only: solve_schroedinger
 use xc, only: xc_pz
-use mixings, only: mixing_linear, mixing_linear_adapt
+use mixings, only: mixing_linear
 use ewald_sums, only: ewald_box
 use efermi, only: fermi_dirac_smearing
 implicit none
