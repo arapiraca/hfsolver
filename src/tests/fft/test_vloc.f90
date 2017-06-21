@@ -20,17 +20,17 @@ use md, only: positions_bcc, positions_fcc
 use arpack, only: peig, eig
 use pksdft_fft, only: solve_schroedinger
 use xc, only: xc_pz
-use mixings, only: mixing_linear, mixing_linear_adapt
+use mixings, only: mixing_linear
 use ewald_sums, only: ewald_box
 implicit none
 
-complex(dp), dimension(:,:,:), allocatable :: neG, psiG, psi, tmp
+complex(dp), dimension(:,:,:), allocatable :: neG, psiG, psi
 real(dp), dimension(:,:,:), allocatable :: G2, Htot, HtotG, Ven0G, ne, Vloc, &
     Veff
 real(dp), allocatable :: G(:,:,:,:), X(:,:,:,:), Xion(:,:), q(:), &
     current(:,:,:,:), eigs(:), orbitals(:,:,:,:), eigs_ref(:), occ(:), &
     Vee(:,:,:), Vee_xc(:,:,:), exc(:,:,:), Vxc(:,:,:), forces(:,:), &
-    cutfn(:,:,:)
+    cutfn(:,:,:), tmp(:)
 complex(dp), allocatable :: dpsi(:,:,:,:), VeeG(:,:,:), VenG(:,:,:)
 real(dp) :: L(3), r, stress(6)
 integer :: i, j, k, u
@@ -136,11 +136,11 @@ call allocate_mold(Vee, ne)
 call allocate_mold(Vee_xc, ne)
 call allocate_mold(psiG, neG)
 call allocate_mold(psi, neG)
-call allocate_mold(tmp, neG)
 call allocate_mold(VeeG, neG)
 call allocate_mold(VenG, neG)
 allocate(X(Ng_local(1), Ng_local(2), Ng_local(3), 3))
 allocate(dpsi(Ng_local(1), Ng_local(2), Ng_local(3), 3))
+allocate(tmp(product(Ng_local)))
 call allocate_mold(G, X)
 call allocate_mold(current, X)
 if (myid == 0) print *, "Load initial position"
@@ -247,7 +247,9 @@ allocate(occ(4))
 
 occ = [1, 1, 1, 1]
 Vee_xc = 0
-call mixing_linear(myid, product(Ng_local), Rfunc, 100, 0.7_dp, Vee_xc)
+call mixing_linear(Ffunc, integral, reshape(Vee_xc, [product(Ng_local)]), &
+    size(occ), 100, 0.7_dp, 1e-5_dp, 1e-9_dp, tmp)
+Vee_xc = reshape(tmp, [Ng_local(1),Ng_local(2),Ng_local(3)])
 
 
 if (myid == 0) print *, "Done"
@@ -256,10 +258,10 @@ call mpi_finalize(ierr)
 
 contains
 
-    subroutine Rfunc(x, y, E)
+    subroutine Ffunc(x, y, energies)
     ! Converge Vee+Vxc only (the other components are constant
     real(dp), intent(in) :: x(:)
-    real(dp), intent(out) :: y(:), E
+    real(dp), intent(out) :: y(:), energies(:)
 
     ! Schroedinger:
     Veff = Vloc + reshape(x, [Ng_local(1),Ng_local(2),Ng_local(3)])
@@ -313,9 +315,15 @@ contains
     !    print *, "Density norm:", norm
     !end if
 
-    E = Etot
-    y = reshape(Vee + Vxc, [product(Ng_local)]) - x
-
+    energies = eigs(:size(occ))
+    y = reshape(Vee + Vxc, [product(Ng_local)])
     end subroutine
+
+    real(dp) function integral(x)
+    ! Computes the integral of the vector 'x'
+    real(dp), intent(in) :: x(:)
+    integral = pintegral(comm_all, L, &
+        reshape(x, [Ng_local(1),Ng_local(2),Ng_local(3)]), Ng)
+    end function
 
 end program
