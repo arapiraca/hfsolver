@@ -7,6 +7,6 @@
   arpack_ncv = 25
   scf_L2_eps = 1e-5
   scf_eig_eps = 5e-7
-  scf_alpha = 0.3
-  scf_max_iter = 50
+  scf_alpha = 1.0
+  scf_max_iter = 10
 /
