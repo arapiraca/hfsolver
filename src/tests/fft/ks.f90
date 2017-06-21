@@ -26,13 +26,13 @@ use ewald_sums, only: ewald_box
 use efermi, only: fermi_dirac_smearing
 implicit none
 
-complex(dp), dimension(:,:,:), allocatable :: neG, psiG, psi, tmp
+complex(dp), dimension(:,:,:), allocatable :: neG, psiG, psi
 real(dp), dimension(:,:,:), allocatable :: G2, Htot, HtotG, Ven0G, ne, Vloc, &
     Veff
 real(dp), allocatable :: G(:,:,:,:), X(:,:,:,:), Xion(:,:), q(:), &
     current(:,:,:,:), eigs(:), orbitals(:,:,:,:), eigs_ref(:), occ(:), &
     Vee(:,:,:), Vee_xc(:,:,:), exc(:,:,:), Vxc(:,:,:), forces(:,:), &
-    cutfn(:,:,:), cutfn2(:,:,:)
+    cutfn(:,:,:), cutfn2(:,:,:), tmp(:)
 complex(dp), allocatable :: dpsi(:,:,:,:), VeeG(:,:,:), VenG(:,:,:)
 real(dp) :: L(3), r, stress(6)
 integer :: i, j, k, u
@@ -154,11 +154,11 @@ call allocate_mold(Vee, ne)
 call allocate_mold(Vee_xc, ne)
 call allocate_mold(psiG, neG)
 call allocate_mold(psi, neG)
-call allocate_mold(tmp, neG)
 call allocate_mold(VeeG, neG)
 call allocate_mold(VenG, neG)
 allocate(X(Ng_local(1), Ng_local(2), Ng_local(3), 3))
 allocate(dpsi(Ng_local(1), Ng_local(2), Ng_local(3), 3))
+allocate(tmp(product(Ng_local)))
 call allocate_mold(G, X)
 call allocate_mold(current, X)
 allocate(forces(3, natom))
@@ -282,7 +282,9 @@ nev = nband
 ncv = arpack_ncv
 allocate(eigs(nev), orbitals(Ng_local(1),Ng_local(2),Ng_local(3),nev))
 Vee_xc = 0
-call mixing_linear(myid, product(Ng_local), Rfunc, scf_iter, 0.3_dp, Vee_xc)
+call mixing_linear(Ffunc, reshape(Vee_xc, [product(Ng_local)]), &
+    1, scf_iter, 0.3_dp, tmp)
+Vee_xc = reshape(tmp, [Ng_local(1),Ng_local(2),Ng_local(3)])
 
 if (myid == 0) call save_eigs_json("output.json", eigs, occ)
 
@@ -293,10 +295,10 @@ call mpi_finalize(ierr)
 
 contains
 
-    subroutine Rfunc(x, y, E)
+    subroutine Ffunc(x, y, energies)
     ! Converge Vee+Vxc only (the other components are constant
     real(dp), intent(in) :: x(:)
-    real(dp), intent(out) :: y(:), E
+    real(dp), intent(out) :: y(:), energies(:)
     real(dp) :: mu, sigma
 
     ! Schroedinger:
@@ -358,8 +360,8 @@ contains
     !    print *, "Density norm:", norm
     !end if
 
-    E = Etot
-    y = reshape(Vee + Vxc, [product(Ng_local)]) - x
+    energies(1) = Etot
+    y = reshape(Vee + Vxc, [product(Ng_local)])
 
     end subroutine
 

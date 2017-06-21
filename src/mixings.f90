@@ -9,14 +9,6 @@ private
 public mixing_linear, mixing_anderson
 
 interface
-    subroutine R_function(x, y, E)
-    ! Computes y = R(x)
-    import :: dp
-    implicit none
-    real(dp), intent(in) :: x(:)
-    real(dp), intent(out) :: y(:), E
-    end subroutine
-
     subroutine F_fn(x, y, energies)
     ! y = F(x), also return the calculated energies to converge
     import :: dp
@@ -35,22 +27,23 @@ end interface
 
 contains
 
-subroutine mixing_linear(myid, n, R, max_iter, alpha, x)
-! Finds "x" so that R(x) = 0
-integer, intent(in) :: myid, n, max_iter
+subroutine mixing_linear(F, x0, nenergies, max_iter, alpha, x_out)
+! Finds "x" so that F(x) = x
+procedure(F_fn) :: F
+real(dp), intent(in) :: x0(:)
+integer, intent(in) ::  nenergies, max_iter
 real(dp), intent(in) :: alpha
-procedure(R_function) :: R
-! On input: initial estimate x0; On output: "x" satisfies R(x) = 0
-real(dp), intent(inout) :: x(n)
-real(dp) :: y(n), E
+real(dp), intent(out) :: x_out(:)
+
+real(dp), dimension(size(x0)) :: x_i, y_i
+real(dp) :: energies(nenergies)
 integer :: i
+x_i = x0
 do i = 1, max_iter
-    call R(x, y, E)
-    x = x + alpha * y
-    if (myid == 0) then
-        print *, "ITER:", i, E
-    end if
+    call F(x_i, y_i, energies)
+    x_i = x_i + alpha * (y_i-x_i)
 end do
+x_out = x_i
 end subroutine
 
 subroutine mixing_anderson(F, integral, x0, nenergies, max_iter, alpha, eps, &
