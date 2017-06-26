@@ -19,7 +19,7 @@ use mpi2, only: mpi_finalize, MPI_COMM_WORLD, mpi_comm_rank, &
     mpi_barrier, mpi_bcast, MPI_DOUBLE_PRECISION
 use md, only: positions_bcc, positions_fcc
 use arpack, only: peig, eig
-use pksdft_fft, only: solve_schroedinger
+use pksdft_fft, only: solve_schroedinger, applyH
 use xc, only: xc_pz
 use mixings, only: mixing_linear, mixing_anderson
 use ewald_sums, only: ewald_box
@@ -32,7 +32,7 @@ real(dp), dimension(:,:,:), allocatable :: G2, Htot, HtotG, Ven0G, ne, Vloc, &
 real(dp), allocatable :: G(:,:,:,:), X(:,:,:,:), Xion(:,:), q(:), &
     current(:,:,:,:), eigs(:), orbitals(:,:,:,:), occ(:), &
     Vee(:,:,:), Vee_xc(:,:,:), exc(:,:,:), Vxc(:,:,:), forces(:,:), &
-    cutfn(:,:,:), cutfn2(:,:,:), tmp(:), tmp_global(:,:,:)
+    cutfn(:,:,:), cutfn2(:,:,:), tmp(:), tmp_global(:,:,:), psi_r(:,:,:)
 complex(dp), allocatable :: dpsi(:,:,:,:), VeeG(:,:,:), VenG(:,:,:)
 real(dp) :: L(3), stress(6)
 integer :: i, j, k, u
@@ -150,6 +150,7 @@ call allocate_mold(exc, ne)
 call allocate_mold(Ven0G, ne)
 call allocate_mold(Vee, ne)
 call allocate_mold(Vee_xc, ne)
+call allocate_mold(psi_r, ne)
 call allocate_mold(psiG, neG)
 call allocate_mold(psi, neG)
 call allocate_mold(VeeG, neG)
@@ -279,17 +280,16 @@ if (myid == 0) read(u,*) tmp_global
 call distribute(comm_all, myid, nsub, 0, tmp_global, Veff)
 if (myid == 0) close(u)
 
+if (myid == 0) print *, "Eigenvalues"
+
+do i = 1, nband
+    psi_r = orbitals(:,:,:,i)
+    call applyH(commy, commz, Ng, nsub, Veff+100, G2, cutfn, psi_r)
+    norm = pintegral(comm_all, L, psi_r**2, Ng)
+    if (myid == 0) print *, i, sqrt(norm)-100
+end do
+
 if (myid == 0) print *, "Propagation"
-
-! TODO: apply it once, just to test that we are getting the correct
-! eigenvalues.
-
-psi = orbitals(:,:,:,1)
-psi = psi * exp(-i_*Veff*dt/2)
-call preal2fourier(psi, psiG, commy, commz, Ng, nsub)
-psiG = psiG * exp(-i_*G2*dt/2*lambdaK)
-call pfourier2real(psiG, psi, commy, commz, Ng, nsub)
-psi = psi * exp(-i_*Veff*dt/2)
 
 if (myid == 0) print *, "Done"
 
