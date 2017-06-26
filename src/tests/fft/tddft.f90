@@ -38,7 +38,7 @@ complex(dp), allocatable :: dpsi(:,:,:,:), VeeG(:,:,:), VenG(:,:,:), &
 real(dp) :: L(3), stress(6)
 integer :: i, j, k, u
 integer :: Ng(3)
-integer :: natom, nelec, nband
+integer :: natom, nelec, nband, max_iter
 logical :: velocity_gauge
 real(dp) :: T_au, dt, rho, norm, w2, Vmin, Ekin, Etot, &
     Eee, Een_loc, E_xc, Enn, Een_core, G2cut, G2cut2
@@ -70,10 +70,11 @@ call bcast_float_array(comm_all, size(L), L)
 
 if (myid == 0) then
     call read_params(Ng, T_au, dt, Ecut, nband)
-    call read_input(nsub, dt)
+    call read_input(nsub, dt, max_iter)
 end if
 call mpi_bcast(Ng, size(Ng), MPI_INTEGER, 0, comm_all, ierr)
 call mpi_bcast(nband, 1, MPI_INTEGER, 0, comm_all, ierr)
+call mpi_bcast(max_iter, 1, MPI_INTEGER, 0, comm_all, ierr)
 call mpi_bcast(nsub, size(nsub), MPI_INTEGER, 0, comm_all, ierr)
 call mpi_bcast(T_au, 1, MPI_DOUBLE_PRECISION, 0, comm_all, ierr)
 call mpi_bcast(dt, 1, MPI_DOUBLE_PRECISION, 0, comm_all, ierr)
@@ -301,8 +302,9 @@ end do
 
 if (myid == 0) print *, "Propagation"
 
+if (myid == 0) open(newunit=u, file="energies.txt", status="replace")
 corbitals = orbitals
-do it = 1, 2
+do it = 1, max_iter
     if (myid == 0) print *, "Starting Iteration:", it
 
     do i = 1, nband
@@ -355,9 +357,12 @@ do it = 1, 2
         print "(a, es22.14)", "Een_loc:  ", Een_loc
         print "(a, es22.14)", "Een_NL:   ", 0._dp
         print "(a, es22.14)", "Etot:     ", Etot
+
+        write(u,*) it, Etot, Ekin, Eee, E_xc, Enn, Een_core, Een_loc
     end if
 end do
 
+if (myid == 0) close(u)
 if (myid == 0) print *, "Done"
 
 call mpi_finalize(ierr)
@@ -440,14 +445,15 @@ contains
     end function
 
 
-    subroutine read_input(nsub, dt)
-    integer, intent(out) :: nsub(3)
+    subroutine read_input(nsub, dt, max_iter)
+    integer, intent(out) :: nsub(3), max_iter
     real(dp), intent(out) :: dt ! in a.u.
     integer :: LNPU(3)
-    namelist /domain/ nsub, dt
+    namelist /domain/ nsub, dt, max_iter
     integer :: u
     nsub = -1
     dt = -1
+    max_iter = -1
     open(newunit=u, file="input_tddft", status="old")
     read(u,nml=domain)
     close(u)
@@ -458,6 +464,7 @@ contains
         nsub(1) = 1
     end if
     if (dt < 0) call stop_error("dt is not specified")
+    if (max_iter < 0) call stop_error("max_iter is not specified")
     end subroutine
 
     subroutine read_params(Ng, T, dt, Ecut, nband)
