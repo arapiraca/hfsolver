@@ -100,8 +100,6 @@ rho = sum(m) / product(L)
 allocate(q(natom))
 q = 1
 
-allocate(occ(nband))
-
 if (myid == 0) then
     print *, "Input:"
     print *, "N =", natom
@@ -280,13 +278,23 @@ if (myid == 0) read(u,*) tmp_global
 call distribute(comm_all, myid, nsub, 0, tmp_global, Veff)
 if (myid == 0) close(u)
 
-if (myid == 0) print *, "Eigenvalues"
+if (myid == 0) print *, "Compute eigs using a Hamiltonian and compare " // &
+    "against KS reference results:"
+if (myid == 0) open(newunit=u, file="eigs.dat", status="old")
+allocate(eigs(nband), occ(nband))
+if (myid == 0) read(u,*) eigs
+if (myid == 0) read(u,*) occ
+if (myid == 0) close(u)
+call mpi_bcast(eigs, size(eigs), MPI_DOUBLE_PRECISION, 0, comm_all, ierr)
+call mpi_bcast(occ, size(occ), MPI_DOUBLE_PRECISION, 0, comm_all, ierr)
 
+if (myid == 0) print "(a6, a16, a10, a10)", "n", "<psi|H|psi>", "Error", "occ"
 do i = 1, nband
     psi_r = orbitals(:,:,:,i)
-    call applyH(commy, commz, Ng, nsub, Veff+100, G2, cutfn, psi_r)
-    norm = pintegral(comm_all, L, psi_r**2, Ng)
-    if (myid == 0) print *, i, sqrt(norm)-100
+    call applyH(commy, commz, Ng, nsub, Veff, G2, cutfn, psi_r)
+    norm = pintegral(comm_all, L, orbitals(:,:,:,i)*psi_r, Ng)
+    if (myid == 0) print "(i6, f16.10, es10.2, f10.5)", &
+        i, norm, abs(norm - eigs(i)), occ(i)
 end do
 
 if (myid == 0) print *, "Propagation"
