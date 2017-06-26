@@ -6,7 +6,7 @@ use pofdft_fft, only: preal2fourier, pfourier2real
 use arpack, only: peig
 implicit none
 private
-public solve_schroedinger
+public solve_schroedinger, applyH
 
 contains
 
@@ -43,25 +43,41 @@ contains
     ! Compute y = A*x
     real(dp), intent(in) :: x(:)
     real(dp), intent(out) :: y(:)
-    complex(dp), dimension(Ng_local(1),Ng_local(2),Ng_local(3)) :: &
-        psi, psiG, psiG_vloc
-    call preal2fourier(reshape(x, [Ng_local(1),Ng_local(2),Ng_local(3)]), &
-        psiG, commy, commz, Ng, nsub)
-    psiG = psiG * cutfn
-    ! psiG is our starting point
-
-    ! Apply kinetic and potential
-    call pfourier2real(psiG, psi, commy, commz, Ng, nsub)
-    call preal2fourier((Vloc-10)*psi, psiG_vloc, commy, commz, Ng, nsub)
-    psiG_vloc = psiG_vloc * cutfn
-
-    psiG = G2/2*psiG + psiG_vloc
-
-    ! Convert to real space at the end
-    call pfourier2real(psiG, psi, commy, commz, Ng, nsub)
-    y = reshape(real(psi,dp), [product(Ng_local)])
+    real(dp), dimension(Ng_local(1),Ng_local(2),Ng_local(3)) :: &
+        psi
+    psi = reshape(x, [Ng_local(1),Ng_local(2),Ng_local(3)])
+    call applyH(commy, commz, Ng, nsub, Vloc-10, G2, cutfn, psi)
+    y = reshape(psi, [product(Ng_local)])
     end
 
 end subroutine
+
+
+subroutine applyH(commy, commz, Ng, nsub, Vloc, G2, cutfn, psi)
+! Apply the Hamiltonian: psi = H*psi
+! The Hamiltonian is composed of the kinetic part and the local potential Vloc
+! part. The `psi` and `Vloc` are given in real space.
+integer, intent(in) :: commy, commz, Ng(:), nsub(:)
+real(dp), intent(in) :: Vloc(:,:,:) ! Local potential in real space
+real(dp), intent(in) :: G2(:,:,:), cutfn(:,:,:)
+real(dp), intent(inout) :: psi(:,:,:) ! Wave function in real space
+complex(dp), dimension(size(psi,1),size(psi,2),size(psi,3)) :: &
+    psi2, psiG, psiG_vloc
+call preal2fourier(psi, psiG, commy, commz, Ng, nsub)
+psiG = psiG * cutfn
+! psiG is our starting point
+
+! Apply kinetic and potential
+call pfourier2real(psiG, psi2, commy, commz, Ng, nsub)
+call preal2fourier(Vloc*psi2, psiG_vloc, commy, commz, Ng, nsub)
+psiG_vloc = psiG_vloc * cutfn
+
+psiG = G2/2*psiG + psiG_vloc
+
+! Convert to real space at the end
+call pfourier2real(psiG, psi2, commy, commz, Ng, nsub)
+psi = real(psi2,dp)
+end subroutine
+
 
 end module
