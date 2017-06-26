@@ -20,7 +20,7 @@ real(dp), intent(out) :: eigs(:) ! eigs(nev)
 real(dp), intent(out) :: orbitals(:,:,:,:)
 
 real(dp), allocatable :: d(:), v(:,:)
-integer :: Ng_local(3), n, i
+integer :: Ng_local(3), n
 real(dp) :: t1, t2
 logical :: verbose
 verbose = .false.
