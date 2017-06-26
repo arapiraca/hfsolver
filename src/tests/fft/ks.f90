@@ -339,7 +339,7 @@ contains
     Een_loc = pintegral(comm_all, L, Vloc*ne, Ng)
     E_xc = pintegral(comm_all, L, exc*ne, Ng)
     Eee = pintegral(comm_all, L, Vee*ne, Ng) / 2
-    Een_core = 4.95047558841102E-02_dp
+    Een_core = 0 ! For now
 
     Etot = Ekin + Eee + E_xc + Enn + Een_core + Een_loc
 
