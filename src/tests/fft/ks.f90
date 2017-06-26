@@ -30,24 +30,21 @@ complex(dp), dimension(:,:,:), allocatable :: neG, psiG, psi
 real(dp), dimension(:,:,:), allocatable :: G2, Htot, HtotG, Ven0G, ne, Vloc, &
     Veff
 real(dp), allocatable :: G(:,:,:,:), X(:,:,:,:), Xion(:,:), q(:), &
-    current(:,:,:,:), eigs(:), orbitals(:,:,:,:), eigs_ref(:), occ(:), &
+    current(:,:,:,:), eigs(:), orbitals(:,:,:,:), occ(:), &
     Vee(:,:,:), Vee_xc(:,:,:), exc(:,:,:), Vxc(:,:,:), forces(:,:), &
     cutfn(:,:,:), cutfn2(:,:,:), tmp(:), tmp_global(:,:,:)
 complex(dp), allocatable :: dpsi(:,:,:,:), VeeG(:,:,:), VenG(:,:,:)
-real(dp) :: L(3), r, stress(6)
+real(dp) :: L(3), stress(6)
 integer :: i, j, k, u
 integer :: Ng(3)
-integer :: LNPU(3)
 integer :: natom, nelec, nband
 logical :: velocity_gauge
-real(dp) :: T_au, dt, alpha, rho, norm, w2, Vmin, Ekin, Etot, &
+real(dp) :: T_au, dt, rho, norm, w2, Vmin, Ekin, Etot, &
     Eee, Een_loc, E_xc, Enn, Een_core, G2cut, G2cut2
 real(dp) :: rloc, C1, C2, Zion, Ecut
 real(dp), allocatable :: m(:)
-integer :: nev, ncv, arpack_ncv, na, scf_max_iter, it
+integer :: nev, ncv, arpack_ncv, scf_max_iter, it
 real(dp) :: scf_L2_eps, scf_eig_eps, scf_alpha
-real(dp), parameter :: D(5) = [0.65435_dp, 2.45106_dp, -1.536643785333E-01_dp, &
-    1.153664378533E+00_dp, 5.0000_dp]
 
 !  parallel variables
 integer :: comm_all, commy, commz, nproc, ierr, nsub(3), Ng_local(3)
@@ -443,7 +440,7 @@ contains
     real(dp), intent(out) :: L(:)
     real(dp), intent(out), allocatable :: Xion(:,:)
     real(dp) :: A, t(3,3)
-    integer :: u, ios, natom_types
+    integer :: u, natom_types
     character :: c
     integer, allocatable :: ncounts(:)
     open(newunit=u, file="POSCAR", status="old")
