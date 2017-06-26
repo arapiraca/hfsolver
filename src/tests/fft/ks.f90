@@ -32,7 +32,7 @@ real(dp), dimension(:,:,:), allocatable :: G2, Htot, HtotG, Ven0G, ne, Vloc, &
 real(dp), allocatable :: G(:,:,:,:), X(:,:,:,:), Xion(:,:), q(:), &
     current(:,:,:,:), eigs(:), orbitals(:,:,:,:), eigs_ref(:), occ(:), &
     Vee(:,:,:), Vee_xc(:,:,:), exc(:,:,:), Vxc(:,:,:), forces(:,:), &
-    cutfn(:,:,:), cutfn2(:,:,:), tmp(:)
+    cutfn(:,:,:), cutfn2(:,:,:), tmp(:), tmp_global(:,:,:)
 complex(dp), allocatable :: dpsi(:,:,:,:), VeeG(:,:,:), VenG(:,:,:)
 real(dp) :: L(3), r, stress(6)
 integer :: i, j, k, u
@@ -143,6 +143,9 @@ myxyz = calculate_myxyz(myid, nsub)
 call mpi_comm_split(comm_all, myxyz(3), 0, commy, ierr)
 call mpi_comm_split(comm_all, myxyz(2), 0, commz, ierr)
 
+
+! We allocate the global array here, to ensure we have enough memory
+allocate(tmp_global(Ng(1), Ng(2), Ng(3)))
 
 allocate(ne(Ng_local(1), Ng_local(2), Ng_local(3)))
 allocate(neG(Ng_local(1), Ng_local(2), Ng_local(3)))
@@ -291,10 +294,17 @@ it = 0
 call mixing_linear &
     (Ffunc, integral, reshape(Vee_xc, [product(Ng_local)]), &
     nband, scf_max_iter, scf_alpha, scf_L2_eps, scf_eig_eps, tmp)
-Vee_xc = reshape(tmp, [Ng_local(1),Ng_local(2),Ng_local(3)])
+!Vee_xc = reshape(tmp, [Ng_local(1),Ng_local(2),Ng_local(3)])
 
 if (myid == 0) call save_eigs_json("output.json", eigs, occ)
 
+if (myid == 0) print *, "Saving orbitals"
+if (myid == 0) open(newunit=u, file="orbitals.dat", status="replace")
+do i = 1, nband
+    call collate(comm_all, myid, nsub, 0, orbitals(:,:,:,i), tmp_global)
+    if (myid == 0) write(u,*) tmp_global
+end do
+if (myid == 0) close(u)
 
 if (myid == 0) print *, "Done"
 
