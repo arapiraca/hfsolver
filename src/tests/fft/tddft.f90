@@ -126,8 +126,6 @@ if (myid == 0) then
 
 end if
 
-stop "OK"
-
 call pfft3_init(myid, comm_all, Ng, nsub)
 
 myxyz = calculate_myxyz(myid, nsub)
@@ -261,39 +259,11 @@ if (myid == 0) then
     print *, "INT:", norm
 end if
 
-!Vloc = Vloc + Vmin - minval(Vloc)
-
-!if (myid == 0) then
-!    open(newunit=u, file="a.txt", status="replace")
-!    !write(u,*) Vloc(:,16,16)
-!    !write(u,*) Ven0G(:,1,1)
-!    !write(u,*) Vloc(:,Ng/2,Ng/2)
-!    write(u,*) Vloc(:,1,1)
-!    close(u)
-!end if
-!stop "OK"
-
-if (myid == 0) then
-    print *, "Solving eigenproblem: DOFs =", product(Ng)
-    print *, "Arpack ncv =", arpack_ncv
-end if
-
-nev = nband
-ncv = arpack_ncv
-allocate(eigs(nev), orbitals(Ng_local(1),Ng_local(2),Ng_local(3),nev))
-Vee_xc = 0
-it = 0
-!call mixing_anderson &
-call mixing_linear &
-    (Ffunc, integral, reshape(Vee_xc, [product(Ng_local)]), &
-    nband, scf_max_iter, scf_alpha, scf_L2_eps, scf_eig_eps, tmp)
-!Vee_xc = reshape(tmp, [Ng_local(1),Ng_local(2),Ng_local(3)])
-
-if (myid == 0) print *, "Saving orbitals"
-if (myid == 0) open(newunit=u, file="orbitals.dat", status="replace")
+if (myid == 0) print *, "Loading orbitals"
+if (myid == 0) open(newunit=u, file="orbitals.dat", status="old")
 do i = 1, nband
-    call collate(comm_all, myid, nsub, 0, orbitals(:,:,:,i), tmp_global)
-    if (myid == 0) write(u,*) tmp_global
+    if (myid == 0) read(u,*) tmp_global
+    !call collate(comm_all, myid, nsub, 0, orbitals(:,:,:,i), tmp_global)
 end do
 if (myid == 0) close(u)
 
