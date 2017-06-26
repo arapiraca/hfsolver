@@ -33,7 +33,8 @@ real(dp), allocatable :: G(:,:,:,:), X(:,:,:,:), Xion(:,:), q(:), &
     current(:,:,:,:), eigs(:), orbitals(:,:,:,:), occ(:), &
     Vee(:,:,:), Vee_xc(:,:,:), exc(:,:,:), Vxc(:,:,:), forces(:,:), &
     cutfn(:,:,:), cutfn2(:,:,:), tmp(:), tmp_global(:,:,:), psi_r(:,:,:)
-complex(dp), allocatable :: dpsi(:,:,:,:), VeeG(:,:,:), VenG(:,:,:)
+complex(dp), allocatable :: dpsi(:,:,:,:), VeeG(:,:,:), VenG(:,:,:), &
+    corbitals(:,:,:,:)
 real(dp) :: L(3), stress(6)
 integer :: i, j, k, u
 integer :: Ng(3)
@@ -154,6 +155,7 @@ call allocate_mold(psi, neG)
 call allocate_mold(VeeG, neG)
 call allocate_mold(VenG, neG)
 allocate(orbitals(Ng_local(1), Ng_local(2), Ng_local(3), nband))
+allocate(corbitals(Ng_local(1), Ng_local(2), Ng_local(3), nband))
 allocate(X(Ng_local(1), Ng_local(2), Ng_local(3), 3))
 allocate(dpsi(Ng_local(1), Ng_local(2), Ng_local(3), 3))
 allocate(tmp(product(Ng_local)))
@@ -299,15 +301,29 @@ end do
 
 if (myid == 0) print *, "Propagation"
 
-do it = 1, 1
+corbitals = orbitals
+do it = 1, 2
     if (myid == 0) print *, "Starting Iteration:", it
+
+    do i = 1, nband
+        psi = corbitals(:,:,:,i) * exp(-i_*Veff*dt/2)
+        call preal2fourier(psi, psiG, commy, commz, Ng, nsub)
+        psiG = psiG * exp(-i_*G2*dt/2)
+        call pfourier2real(psiG, psi, commy, commz, Ng, nsub)
+        corbitals(:,:,:,i) = psi * exp(-i_*Veff*dt/2)
+    end do
+    if (myid == 0) print *, "Square of norms of orbitals <psi|psi>:"
+    do i = 1, nband
+        norm = pintegral(comm_all, L, abs(corbitals(:,:,:,i))**2, Ng)
+        if (myid == 0) print *, i, norm
+    end do
 
     ! Density
     ne = 0
     Ekin = 0
     do i = 1, nband
-        ne = ne + occ(i)*orbitals(:,:,:,i)**2
-        call preal2fourier(orbitals(:,:,:,i), psiG, commy, commz, Ng, nsub)
+        ne = ne + occ(i)*abs(corbitals(:,:,:,i))**2
+        call preal2fourier(corbitals(:,:,:,i), psiG, commy, commz, Ng, nsub)
         Ekin = Ekin &
             + occ(i) * 1._dp/2 * pintegralG(comm_all, L, G2*abs(psiG)**2)
     end do
@@ -340,15 +356,6 @@ do it = 1, 1
         print "(a, es22.14)", "Een_NL:   ", 0._dp
         print "(a, es22.14)", "Etot:     ", Etot
     end if
-
-    if (myid == 0) print "(a6, a16, a10, a10)", "n", "<psi|H|psi>", "Error", "occ"
-    do i = 1, nband
-        psi_r = orbitals(:,:,:,i)
-        call applyH(commy, commz, Ng, nsub, Veff, G2, cutfn, psi_r)
-        norm = pintegral(comm_all, L, orbitals(:,:,:,i)*psi_r, Ng)
-        if (myid == 0) print "(i6, f16.10, es10.2, f10.5)", &
-            i, norm, abs(norm - eigs(i)), occ(i)
-    end do
 end do
 
 if (myid == 0) print *, "Done"
