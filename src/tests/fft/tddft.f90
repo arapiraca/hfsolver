@@ -299,6 +299,48 @@ end do
 
 if (myid == 0) print *, "Propagation"
 
+do it = 1, 1
+    if (myid == 0) print *, "Starting Iteration:", it
+
+    ! Density
+    ne = 0
+    Ekin = 0
+    do i = 1, nband
+        ne = ne + occ(i)*orbitals(:,:,:,i)**2
+        call preal2fourier(orbitals(:,:,:,i), psiG, commy, commz, Ng, nsub)
+        Ekin = Ekin &
+            + occ(i) * 1._dp/2 * pintegralG(comm_all, L, G2*abs(psiG)**2)
+    end do
+
+    ! Hartree (Poisson)
+    call preal2fourier(ne, neG, commy, commz, Ng, nsub)
+    call poisson_kernel(myid, size(neG), neG, G2, VeeG)
+    VeeG = VeeG * cutfn2
+    call pfourier2real(VeeG, Vee, commy, commz, Ng, nsub)
+
+    ! XC
+    call xc_pz(ne, exc, Vxc)
+
+    Een_loc = pintegral(comm_all, L, Vloc*ne, Ng)
+    E_xc = pintegral(comm_all, L, exc*ne, Ng)
+    Eee = pintegral(comm_all, L, Vee*ne, Ng) / 2
+    Een_core = 0 ! For now
+
+    Etot = Ekin + Eee + E_xc + Enn + Een_core + Een_loc
+
+    if (myid == 0) then
+        print *, "n, E[a.u.] E[eV] occ"
+        print "(a, es22.14)", "Ekin:     ", Ekin
+        print "(a, es22.14)", "Eee:      ", Eee
+        print "(a, es22.14)", "Exc:      ", E_xc
+        print "(a, es22.14)", "Enn:      ", Enn
+        print "(a, es22.14)", "Een_core: ", Een_core
+        print "(a, es22.14)", "Een_loc:  ", Een_loc
+        print "(a, es22.14)", "Een_NL:   ", 0._dp
+        print "(a, es22.14)", "Etot:     ", Etot
+    end if
+end do
+
 if (myid == 0) print *, "Done"
 
 call mpi_finalize(ierr)
