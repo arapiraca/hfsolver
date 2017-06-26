@@ -279,6 +279,18 @@ if (myid == 0) read(u,*) tmp_global
 call distribute(comm_all, myid, nsub, 0, tmp_global, Veff)
 if (myid == 0) close(u)
 
+if (myid == 0) print *, "Propagation"
+
+! TODO: apply it once, just to test that we are getting the correct
+! eigenvalues.
+
+psi = orbitals(:,:,:,1)
+psi = psi * exp(-i_*Veff*dt/2)
+call preal2fourier(psi, psiG, commy, commz, Ng, nsub)
+psiG = psiG * exp(-i_*G2*dt/2*lambdaK)
+call pfourier2real(psiG, psi, commy, commz, Ng, nsub)
+psi = psi * exp(-i_*Veff*dt/2)
+
 if (myid == 0) print *, "Done"
 
 call mpi_finalize(ierr)
