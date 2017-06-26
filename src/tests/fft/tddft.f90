@@ -267,6 +267,11 @@ do i = 1, nband
     call distribute(comm_all, myid, nsub, 0, tmp_global, orbitals(:,:,:,i))
 end do
 if (myid == 0) close(u)
+if (myid == 0) print *, "Norm of orbitals:"
+do i = 1, nband
+    norm = pintegral(comm_all, L, orbitals(:,:,:,i)**2, Ng)
+    if (myid == 0) print *, i, norm
+end do
 
 if (myid == 0) print *, "Done"
 
