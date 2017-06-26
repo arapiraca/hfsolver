@@ -297,6 +297,7 @@ call mixing_linear &
 !Vee_xc = reshape(tmp, [Ng_local(1),Ng_local(2),Ng_local(3)])
 
 if (myid == 0) call save_eigs_json("output.json", eigs, occ)
+if (myid == 0) call save_eigs_dat("eigs.dat", eigs, occ)
 
 if (myid == 0) print *, "Saving orbitals"
 if (myid == 0) open(newunit=u, file="orbitals.dat", status="replace")
@@ -596,6 +597,17 @@ contains
     write(u,*) '    }'
     write(u,*) '  ]'
     write(u,*) '}'
+    close(u)
+    end subroutine
+
+    subroutine save_eigs_dat(filename, eigs, occ)
+    character(*), intent(in) :: filename
+    real(dp), intent(in) :: eigs(:), occ(:)
+    integer :: u, i, nband
+    nband = size(eigs)
+    open(newunit=u, file=filename, status="replace")
+    write(u,*) eigs
+    write(u,*) occ
     close(u)
     end subroutine
 
