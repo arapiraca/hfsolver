@@ -306,6 +306,12 @@ do i = 1, nband
 end do
 if (myid == 0) close(u)
 
+if (myid == 0) print *, "Saving effective potential"
+if (myid == 0) open(newunit=u, file="Veff.dat", status="replace")
+call collate(comm_all, myid, nsub, 0, Veff, tmp_global)
+if (myid == 0) write(u,*) tmp_global
+if (myid == 0) close(u)
+
 if (myid == 0) print *, "Done"
 
 call mpi_finalize(ierr)

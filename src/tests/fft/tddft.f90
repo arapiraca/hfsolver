@@ -273,6 +273,12 @@ do i = 1, nband
     if (myid == 0) print *, i, norm
 end do
 
+if (myid == 0) print *, "Loading Veff"
+if (myid == 0) open(newunit=u, file="Veff.dat", status="old")
+if (myid == 0) read(u,*) tmp_global
+call distribute(comm_all, myid, nsub, 0, tmp_global, Veff)
+if (myid == 0) close(u)
+
 if (myid == 0) print *, "Done"
 
 call mpi_finalize(ierr)
