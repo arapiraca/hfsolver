@@ -326,6 +326,7 @@ do it = 1, 1
     Eee = pintegral(comm_all, L, Vee*ne, Ng) / 2
     Een_core = 0 ! For now
 
+    Veff = Vloc + Vee + Vxc
     Etot = Ekin + Eee + E_xc + Enn + Een_core + Een_loc
 
     if (myid == 0) then
@@ -339,6 +340,15 @@ do it = 1, 1
         print "(a, es22.14)", "Een_NL:   ", 0._dp
         print "(a, es22.14)", "Etot:     ", Etot
     end if
+
+    if (myid == 0) print "(a6, a16, a10, a10)", "n", "<psi|H|psi>", "Error", "occ"
+    do i = 1, nband
+        psi_r = orbitals(:,:,:,i)
+        call applyH(commy, commz, Ng, nsub, Veff, G2, cutfn, psi_r)
+        norm = pintegral(comm_all, L, orbitals(:,:,:,i)*psi_r, Ng)
+        if (myid == 0) print "(i6, f16.10, es10.2, f10.5)", &
+            i, norm, abs(norm - eigs(i)), occ(i)
+    end do
 end do
 
 if (myid == 0) print *, "Done"
