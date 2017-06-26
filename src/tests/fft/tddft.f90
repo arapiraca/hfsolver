@@ -12,7 +12,7 @@ use ofdft, only: read_pseudo
 use pofdft_fft, only: pfft3_init, preal2fourier, pfourier2real, &
     real_space_vectors, reciprocal_space_vectors, calculate_myxyz, &
     pintegral, pintegralG, free_energy, free_energy_min, &
-    radial_potential_fourier, psum, pmaxval, collate, poisson_kernel
+    radial_potential_fourier, psum, pmaxval, distribute, poisson_kernel
 use openmp, only: omp_get_wtime
 use mpi2, only: mpi_finalize, MPI_COMM_WORLD, mpi_comm_rank, &
     mpi_comm_size, mpi_init, mpi_comm_split, MPI_INTEGER, &
@@ -154,6 +154,7 @@ call allocate_mold(psiG, neG)
 call allocate_mold(psi, neG)
 call allocate_mold(VeeG, neG)
 call allocate_mold(VenG, neG)
+allocate(orbitals(Ng_local(1), Ng_local(2), Ng_local(3), nband))
 allocate(X(Ng_local(1), Ng_local(2), Ng_local(3), 3))
 allocate(dpsi(Ng_local(1), Ng_local(2), Ng_local(3), 3))
 allocate(tmp(product(Ng_local)))
@@ -263,7 +264,7 @@ if (myid == 0) print *, "Loading orbitals"
 if (myid == 0) open(newunit=u, file="orbitals.dat", status="old")
 do i = 1, nband
     if (myid == 0) read(u,*) tmp_global
-    !call collate(comm_all, myid, nsub, 0, orbitals(:,:,:,i), tmp_global)
+    call distribute(comm_all, myid, nsub, 0, tmp_global, orbitals(:,:,:,i))
 end do
 if (myid == 0) close(u)
 

@@ -16,7 +16,7 @@ private
 public pfft3_init, preal2fourier, pfourier2real, real_space_vectors, &
     reciprocal_space_vectors, calculate_myxyz, pintegral, pintegralG, &
     free_energy, free_energy_min, radial_potential_fourier, psum, pmaxval, &
-    collate, poisson_kernel
+    collate, distribute, poisson_kernel
 
 interface preal2fourier
     module procedure preal2fourier_real
@@ -620,6 +620,36 @@ else
     call mpi_send(dsource, size(dsource,1), size(dsource,2), size(dsource,3), &
         MPI_DOUBLE_PRECISION, root, 0, comm, ierr)
 end if
-endsubroutine
+end subroutine
+
+subroutine distribute(comm, myid, nsub, root, dsource, dtarget)
+! Distribute data from global dsource on rank 'root' to parallel dtarget
+integer, intent(in) :: comm, myid, nsub(3), root
+real(dp), intent(in) :: dsource(:,:,:)
+real(dp), intent(out) :: dtarget(:,:,:)
+real(dp) :: tmp(size(dtarget,1), size(dtarget,2), size(dtarget,3))
+integer :: id, max_id, xyz(3), Ng_local(3)
+integer :: ierr, stat(MPI_STATUS_SIZE)
+max_id = product(nsub)
+Ng_local = [size(dtarget,1), size(dtarget,2), size(dtarget,3)]
+if (myid == root) then
+    do id = 0, max_id-1
+        xyz = calculate_myxyz(id, nsub)
+        tmp = dsource(xyz(1)*Ng_local(1)+1:(xyz(1)+1)*Ng_local(1), &
+                xyz(2)*Ng_local(2)+1:(xyz(2)+1)*Ng_local(2), &
+                xyz(3)*Ng_local(3)+1:(xyz(3)+1)*Ng_local(3))
+        ! get source from id
+        if (id == root) then
+            dtarget = tmp
+        else
+            call mpi_send(tmp, size(tmp,1), size(tmp, 2), size(tmp, 3), &
+                MPI_DOUBLE_PRECISION, id, 0, comm, ierr)
+        end if
+    end do
+else
+    call mpi_recv(dtarget, size(dtarget,1), size(dtarget,2), size(dtarget,3), &
+        MPI_DOUBLE_PRECISION, root, 0, comm, stat, ierr)
+end if
+end subroutine
 
 end module
