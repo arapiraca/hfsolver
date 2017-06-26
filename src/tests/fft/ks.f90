@@ -130,6 +130,9 @@ if (myid == 0) then
     if (product(nsub) /= nproc) then
         call stop_error("nproc must be equal to the number of subdomains")
     end if
+
+    call write_params(Ng, T_au, dt, Ecut, nband)
+
 end if
 
 call pfft3_init(myid, comm_all, Ng, nsub)
@@ -433,6 +436,16 @@ contains
     if (scf_alpha < 0) scf_alpha = 0.3_dp
 
     T = T_eV / Ha2eV  ! Convert from eV to a.u.
+    endsubroutine
+
+    subroutine write_params(Ng, T, dt, Ecut, nband)
+    integer, intent(in) :: Ng(:), nband
+    real(dp), intent(in) :: T, dt, Ecut  ! in a.u.
+    namelist /domain/ Ng, T, dt, Ecut, nband
+    integer :: u
+    open(newunit=u, file="params.out", status="replace")
+    write(u,nml=domain)
+    close(u)
     endsubroutine
 
     subroutine load_initial_pos(natom, L, Xion)
