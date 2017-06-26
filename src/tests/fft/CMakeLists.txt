@@ -34,6 +34,7 @@ if(WITH_MPI)
 
     if(WITH_ARPACK)
         ADDMPIEXECUTABLE(ks)
+        ADDMPIEXECUTABLE(tddft)
         ADDMPIEXECUTABLE(test_vloc)
         #ADDMPITEST(test_vloc vloc 4)
         ADDMPIEXECUTABLE(test_psch3d)
