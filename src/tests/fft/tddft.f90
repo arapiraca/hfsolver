@@ -42,10 +42,9 @@ integer :: natom, nelec, nband, max_iter
 logical :: velocity_gauge
 real(dp) :: T_au, dt, rho, norm, w2, Vmin, Ekin, Etot, &
     Eee, Een_loc, E_xc, Enn, Een_core, G2cut, G2cut2
-real(dp) :: rloc, C1, C2, Zion, Ecut
+real(dp) :: rloc, C1, C2, Zion, Ecut, E0, Ex, t, td, tw
 real(dp), allocatable :: m(:)
-integer :: nev, ncv, arpack_ncv, scf_max_iter, it
-real(dp) :: scf_L2_eps, scf_eig_eps, scf_alpha
+integer :: it
 
 !  parallel variables
 integer :: comm_all, commy, commz, nproc, ierr, nsub(3), Ng_local(3)
@@ -304,15 +303,21 @@ if (myid == 0) print *, "Propagation"
 
 if (myid == 0) open(newunit=u, file="energies.txt", status="replace")
 corbitals = orbitals
+t = 0
 do it = 1, max_iter
+    t = t + dt
     if (myid == 0) print *, "Starting Iteration:", it
 
+    E0 = 0.003_dp
+    td = 0.2_dp
+    tw = 0.04_dp
+    Ex = E0 * exp(-(t-td)**2/(2*tw**2)) / (sqrt(2*pi)*tw)
     do i = 1, nband
-        psi = corbitals(:,:,:,i) * exp(-i_*Veff*dt/2)
+        psi = corbitals(:,:,:,i) * exp(-i_*(Veff+X(:,:,:,1)*Ex)*dt/2)
         call preal2fourier(psi, psiG, commy, commz, Ng, nsub)
         psiG = psiG * exp(-i_*G2*dt/2)
         call pfourier2real(psiG, psi, commy, commz, Ng, nsub)
-        corbitals(:,:,:,i) = psi * exp(-i_*Veff*dt/2)
+        corbitals(:,:,:,i) = psi * exp(-i_*(Veff+X(:,:,:,1)*Ex)*dt/2)
     end do
     if (myid == 0) print *, "Square of norms of orbitals <psi|psi>:"
     do i = 1, nband
