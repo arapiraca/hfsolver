@@ -32,11 +32,11 @@ real(dp), dimension(:,:,:), allocatable :: G2, Htot, HtotG, Ven0G, ne, Vloc, &
 real(dp), allocatable :: G(:,:,:,:), X(:,:,:,:), Xion(:,:), q(:), &
     current(:,:,:,:), eigs(:), orbitals(:,:,:,:), occ(:), &
     Vee(:,:,:), Vee_xc(:,:,:), exc(:,:,:), Vxc(:,:,:), forces(:,:), &
-    cutfn(:,:,:), cutfn2(:,:,:), tmp(:), tmp_global(:,:,:), psi_r(:,:,:)
+    cutfn(:,:,:), cutfn2(:,:,:), tmp_global(:,:,:), psi_r(:,:,:)
 complex(dp), allocatable :: dpsi(:,:,:,:), VeeG(:,:,:), VenG(:,:,:), &
-    corbitals(:,:,:,:)
-real(dp) :: L(3), stress(6)
-integer :: i, j, k, u
+    corbitals(:,:,:,:), tmp(:,:,:)
+real(dp) :: L(3), stress(6), current_avg(3), A
+integer :: i, j, k, u, u2
 integer :: Ng(3)
 integer :: natom, nelec, nband, max_iter
 logical :: velocity_gauge
@@ -158,7 +158,7 @@ allocate(orbitals(Ng_local(1), Ng_local(2), Ng_local(3), nband))
 allocate(corbitals(Ng_local(1), Ng_local(2), Ng_local(3), nband))
 allocate(X(Ng_local(1), Ng_local(2), Ng_local(3), 3))
 allocate(dpsi(Ng_local(1), Ng_local(2), Ng_local(3), 3))
-allocate(tmp(product(Ng_local)))
+call allocate_mold(tmp, psiG)
 call allocate_mold(G, X)
 call allocate_mold(current, X)
 allocate(forces(3, natom))
@@ -302,6 +302,7 @@ end do
 if (myid == 0) print *, "Propagation"
 
 if (myid == 0) open(newunit=u, file="energies.txt", status="replace")
+if (myid == 0) open(newunit=u2, file="current.txt", status="replace")
 corbitals = orbitals
 t = 0
 do it = 1, max_iter
@@ -312,12 +313,22 @@ do it = 1, max_iter
     td = 0.2_dp
     tw = 0.04_dp
     Ex = E0 * exp(-(t-td)**2/(2*tw**2)) / (sqrt(2*pi)*tw)
+    A = -E0 * (erf(sqrt(2._dp)*(t - td)/(2*tw))/2 + 1._dp/2)
+    if (velocity_gauge) then
+        ! velocity gauge
+        Htot = Veff+A**2/2
+        HtotG = G2/2 + A*G(:,:,:,1)
+    else
+        ! length gauge
+        Htot = Veff+X(:,:,:,1)*Ex
+        HtotG = G2/2
+    end if
     do i = 1, nband
-        psi = corbitals(:,:,:,i) * exp(-i_*(Veff+X(:,:,:,1)*Ex)*dt/2)
+        psi = corbitals(:,:,:,i) * exp(-i_*Htot*dt/2)
         call preal2fourier(psi, psiG, commy, commz, Ng, nsub)
-        psiG = psiG * exp(-i_*G2*dt/2)
+        psiG = psiG * exp(-i_*HtotG*dt)
         call pfourier2real(psiG, psi, commy, commz, Ng, nsub)
-        corbitals(:,:,:,i) = psi * exp(-i_*(Veff+X(:,:,:,1)*Ex)*dt/2)
+        corbitals(:,:,:,i) = psi * exp(-i_*Htot*dt/2)
     end do
     if (myid == 0) print *, "Square of norms of orbitals <psi|psi>:"
     do i = 1, nband
@@ -365,9 +376,33 @@ do it = 1, max_iter
 
         write(u,*) t, Etot, Ekin, Eee, E_xc, Enn, Een_core, Een_loc
     end if
+
+    ! Current
+    current_avg = 0
+    do i = 1, nband
+        call preal2fourier(corbitals(:,:,:,i), psiG, commy, commz, Ng, nsub)
+        do j = 1, 3
+            call pfourier2real(i_*G(:,:,:,j)*psiG, dpsi(:,:,:,j), &
+                    commy, commz, Ng, nsub)
+            tmp = i_/(2*natom) * (conjg(psi)*dpsi(:,:,:,j)- &
+                psi*conjg(dpsi(:,:,:,j)))
+            if (velocity_gauge) then
+                if (j == 1) tmp = tmp - A*ne/natom
+            end if
+            if (maxval(abs(aimag(tmp))) > 1e-12_dp) then
+                print *, "INFO: current  max imaginary part:", &
+                    maxval(aimag(tmp))
+            end if
+            current(:,:,:,j) = real(tmp(:,:,:), dp)
+            current_avg(j) = current_avg(j) + occ(i)* &
+                pintegral(comm_all, L, current(:,:,:,j),Ng)/product(L)
+        end do
+    end do
+    if (myid == 0) write(u2,*) t, current_avg
 end do
 
 if (myid == 0) close(u)
+if (myid == 0) close(u2)
 if (myid == 0) print *, "Done"
 
 call mpi_finalize(ierr)
