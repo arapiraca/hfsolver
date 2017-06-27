@@ -64,8 +64,8 @@ call mpi_bcast(natom, 1, MPI_INTEGER, 0, comm_all, ierr)
 if (myid /= 0) then
     allocate(Xion(3,natom))
 end if
-call bcast_float_array(comm_all, size(Xion), Xion)
-call bcast_float_array(comm_all, size(L), L)
+call mpi_bcast(Xion, size(Xion), MPI_DOUBLE_PRECISION, 0, comm_all, ierr)
+call mpi_bcast(L, size(L), MPI_DOUBLE_PRECISION, 0, comm_all, ierr)
 
 if (myid == 0) then
     call read_input(nproc, Ng, nsub, T_au, dt, Ecut, nband, arpack_ncv, &
@@ -515,13 +515,6 @@ contains
     end do
     backspace(u)
     end function
-
-    subroutine bcast_float_array(comm, n, a)
-    integer, intent(in) :: comm, n
-    real(dp), intent(inout) :: a(n)
-    integer :: ierr
-    call mpi_bcast(a, n, MPI_DOUBLE_PRECISION, 0, comm, ierr)
-    end subroutine
 
     subroutine adjust_Ng(Ng)
     integer, intent(inout) :: Ng
