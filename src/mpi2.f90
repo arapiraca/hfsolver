@@ -5,7 +5,8 @@ use mpi, only: MPI_COMM_WORLD, MPI_INTEGER, MPI_DOUBLE_PRECISION, MPI_SUM, &
     MPI_MAX, MPI_STATUS_SIZE
 use mpi_dispatch, only: mpi_bcast_floats, mpi_bcast_float, mpi_bcast_ints, &
     mpi_bcast_int, mpi_allreduce_float, mpi_finalize => mpi_finalize_dispatch, &
-    mpi_send_floats, mpi_recv_floats, mpi_send_float, mpi_recv_float
+    mpi_send_floats, mpi_recv_floats, mpi_send_float, mpi_recv_float, &
+    mpi_bcast_floats2
 implicit none
 private
 
@@ -20,6 +21,7 @@ public mpi_bcast, mpi_finalize, mpi_allreduce, mpi_send, mpi_recv
 
 interface mpi_bcast
     module procedure mpi_bcast_floats
+    module procedure mpi_bcast_floats2
     module procedure mpi_bcast_float
     module procedure mpi_bcast_ints
     module procedure mpi_bcast_int

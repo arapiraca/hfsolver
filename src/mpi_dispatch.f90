@@ -21,6 +21,14 @@ integer, intent(out) :: ierr
 call mpi_bcast(buffer, count_, datatype, root, comm, ierr)
 end subroutine
 
+subroutine mpi_bcast_floats2(buffer, count_, datatype, root, comm, ierr)
+integer, intent(in) :: count_
+real(dp), intent(inout) :: buffer(:,:)
+integer, intent(in) :: datatype, root, comm
+integer, intent(out) :: ierr
+call mpi_bcast(buffer, count_, datatype, root, comm, ierr)
+end subroutine
+
 subroutine mpi_bcast_float(buffer, count_, datatype, root, comm, ierr)
 integer, intent(in) :: count_
 real(dp), intent(inout) :: buffer
