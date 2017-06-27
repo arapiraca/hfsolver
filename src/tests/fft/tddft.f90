@@ -69,7 +69,7 @@ call mpi_bcast(L, size(L), MPI_DOUBLE_PRECISION, 0, comm_all, ierr)
 
 if (myid == 0) then
     call read_params(Ng, T_au, dt, Ecut, nband)
-    call read_input(nsub, dt, max_iter)
+    call read_input(nsub, dt, max_iter, E0, td, tw)
 end if
 call mpi_bcast(Ng, size(Ng), MPI_INTEGER, 0, comm_all, ierr)
 call mpi_bcast(nband, 1, MPI_INTEGER, 0, comm_all, ierr)
@@ -78,6 +78,9 @@ call mpi_bcast(nsub, size(nsub), MPI_INTEGER, 0, comm_all, ierr)
 call mpi_bcast(T_au, 1, MPI_DOUBLE_PRECISION, 0, comm_all, ierr)
 call mpi_bcast(dt, 1, MPI_DOUBLE_PRECISION, 0, comm_all, ierr)
 call mpi_bcast(Ecut, 1, MPI_DOUBLE_PRECISION, 0, comm_all, ierr)
+call mpi_bcast(E0, 1, MPI_DOUBLE_PRECISION, 0, comm_all, ierr)
+call mpi_bcast(td, 1, MPI_DOUBLE_PRECISION, 0, comm_all, ierr)
+call mpi_bcast(tw, 1, MPI_DOUBLE_PRECISION, 0, comm_all, ierr)
 
 G2cut = 2*Ecut
 G2cut2 = 4*G2cut
@@ -309,9 +312,6 @@ do it = 1, max_iter
     t = t + dt
     if (myid == 0) print *, "Starting Iteration:", it
 
-    E0 = 0.003_dp
-    td = 0.2_dp
-    tw = 0.04_dp
     Ex = E0 * exp(-(t-td)**2/(2*tw**2)) / (sqrt(2*pi)*tw)
     A = -E0 * (erf(sqrt(2._dp)*(t - td)/(2*tw))/2 + 1._dp/2)
     if (velocity_gauge) then
@@ -409,11 +409,12 @@ call mpi_finalize(ierr)
 
 contains
 
-    subroutine read_input(nsub, dt, max_iter)
+    subroutine read_input(nsub, dt, max_iter, E0, td, tw)
     integer, intent(out) :: nsub(3), max_iter
     real(dp), intent(out) :: dt ! in a.u.
+    real(dp), intent(out) :: E0, td, tw
     integer :: LNPU(3)
-    namelist /domain/ nsub, dt, max_iter
+    namelist /domain/ nsub, dt, max_iter, E0, td, tw
     integer :: u
     nsub = -1
     dt = -1
