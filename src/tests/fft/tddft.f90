@@ -38,7 +38,7 @@ complex(dp), allocatable :: dpsi(:,:,:,:), VeeG(:,:,:), VenG(:,:,:), &
 real(dp) :: L(3), stress(6), current_avg(3), A
 integer :: i, j, k, u, u2
 integer :: Ng(3)
-integer :: natom, nelec, nband, max_iter
+integer :: natom, nelec, nband, max_iter, field_dir
 logical :: velocity_gauge
 real(dp) :: T_au, dt, rho, norm, w2, Vmin, Ekin, Etot, &
     Eee, Een_loc, E_xc, Enn, Een_core, G2cut, G2cut2
@@ -69,7 +69,7 @@ call mpi_bcast(L, size(L), MPI_DOUBLE_PRECISION, 0, comm_all, ierr)
 
 if (myid == 0) then
     call read_params(Ng, T_au, dt, Ecut, nband)
-    call read_input(nsub, dt, max_iter, E0, td, tw, velocity_gauge)
+    call read_input(nsub, dt, max_iter, E0, td, tw, velocity_gauge, field_dir)
 end if
 call mpi_bcast(Ng, size(Ng), MPI_INTEGER, 0, comm_all, ierr)
 call mpi_bcast(nband, 1, MPI_INTEGER, 0, comm_all, ierr)
@@ -82,6 +82,7 @@ call mpi_bcast(E0, 1, MPI_DOUBLE_PRECISION, 0, comm_all, ierr)
 call mpi_bcast(td, 1, MPI_DOUBLE_PRECISION, 0, comm_all, ierr)
 call mpi_bcast(tw, 1, MPI_DOUBLE_PRECISION, 0, comm_all, ierr)
 call mpi_bcast(velocity_gauge, 1, MPI_LOGICAL, 0, comm_all, ierr)
+call mpi_bcast(field_dir, 1, MPI_INTEGER, 0, comm_all, ierr)
 
 G2cut = 2*Ecut
 G2cut2 = 4*G2cut
@@ -317,10 +318,10 @@ do it = 1, max_iter
     if (velocity_gauge) then
         ! velocity gauge
         Htot = Veff+A**2/2
-        HtotG = G2/2 + A*G(:,:,:,1)
+        HtotG = G2/2 + A*G(:,:,:,field_dir)
     else
         ! length gauge
-        Htot = Veff+X(:,:,:,1)*Ex
+        Htot = Veff+X(:,:,:,field_dir)*Ex
         HtotG = G2/2
     end if
     do i = 1, nband
@@ -387,7 +388,7 @@ do it = 1, max_iter
             tmp = i_/(2*natom) * (conjg(psi)*dpsi(:,:,:,j)- &
                 psi*conjg(dpsi(:,:,:,j)))
             if (velocity_gauge) then
-                if (j == 1) tmp = tmp - A*ne/natom
+                if (j == field_dir) tmp = tmp - A*ne/natom
             end if
             if (maxval(abs(aimag(tmp))) > 1e-12_dp) then
                 print *, "INFO: current  max imaginary part:", &
@@ -409,13 +410,14 @@ call mpi_finalize(ierr)
 
 contains
 
-    subroutine read_input(nsub, dt, max_iter, E0, td, tw, velocity_gauge)
-    integer, intent(out) :: nsub(3), max_iter
+    subroutine read_input(nsub, dt, max_iter, E0, td, tw, velocity_gauge, &
+            field_dir)
+    integer, intent(out) :: nsub(3), max_iter, field_dir
     real(dp), intent(out) :: dt ! in a.u.
     real(dp), intent(out) :: E0, td, tw
     logical, intent(out) :: velocity_gauge
     integer :: LNPU(3)
-    namelist /domain/ nsub, dt, max_iter, E0, td, tw, velocity_gauge
+    namelist /domain/ nsub, dt, max_iter, E0, td, tw, velocity_gauge, field_dir
     integer :: u
     nsub = -1
     dt = -1
@@ -424,6 +426,7 @@ contains
     E0 = -1
     td = -1
     tw = -1
+    field_dir = 1
     open(newunit=u, file="input_tddft", status="old")
     read(u,nml=domain)
     close(u)
