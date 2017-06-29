@@ -16,7 +16,7 @@ use pofdft_fft, only: pfft3_init, preal2fourier, pfourier2real, &
 use openmp, only: omp_get_wtime
 use mpi2, only: mpi_finalize, MPI_COMM_WORLD, mpi_comm_rank, &
     mpi_comm_size, mpi_init, mpi_comm_split, MPI_INTEGER, &
-    mpi_barrier, mpi_bcast, MPI_DOUBLE_PRECISION
+    mpi_barrier, mpi_bcast, MPI_DOUBLE_PRECISION, MPI_LOGICAL
 use md, only: positions_bcc, positions_fcc
 use arpack, only: peig, eig
 use pksdft_fft, only: solve_schroedinger, applyH
@@ -69,7 +69,7 @@ call mpi_bcast(L, size(L), MPI_DOUBLE_PRECISION, 0, comm_all, ierr)
 
 if (myid == 0) then
     call read_params(Ng, T_au, dt, Ecut, nband)
-    call read_input(nsub, dt, max_iter, E0, td, tw)
+    call read_input(nsub, dt, max_iter, E0, td, tw, velocity_gauge)
 end if
 call mpi_bcast(Ng, size(Ng), MPI_INTEGER, 0, comm_all, ierr)
 call mpi_bcast(nband, 1, MPI_INTEGER, 0, comm_all, ierr)
@@ -81,6 +81,7 @@ call mpi_bcast(Ecut, 1, MPI_DOUBLE_PRECISION, 0, comm_all, ierr)
 call mpi_bcast(E0, 1, MPI_DOUBLE_PRECISION, 0, comm_all, ierr)
 call mpi_bcast(td, 1, MPI_DOUBLE_PRECISION, 0, comm_all, ierr)
 call mpi_bcast(tw, 1, MPI_DOUBLE_PRECISION, 0, comm_all, ierr)
+call mpi_bcast(velocity_gauge, 1, MPI_LOGICAL, 0, comm_all, ierr)
 
 G2cut = 2*Ecut
 G2cut2 = 4*G2cut
@@ -96,7 +97,6 @@ Ng_local = Ng / nsub
 allocate(m(natom))
 nelec = natom
 m = 2._dp * u2au ! Using D mass in atomic mass units [u]
-velocity_gauge = .true. ! velocity or length gauge?
 
 !L = (sum(m) / rho)**(1._dp/3)
 rho = sum(m) / product(L)
@@ -409,16 +409,21 @@ call mpi_finalize(ierr)
 
 contains
 
-    subroutine read_input(nsub, dt, max_iter, E0, td, tw)
+    subroutine read_input(nsub, dt, max_iter, E0, td, tw, velocity_gauge)
     integer, intent(out) :: nsub(3), max_iter
     real(dp), intent(out) :: dt ! in a.u.
     real(dp), intent(out) :: E0, td, tw
+    logical, intent(out) :: velocity_gauge
     integer :: LNPU(3)
-    namelist /domain/ nsub, dt, max_iter, E0, td, tw
+    namelist /domain/ nsub, dt, max_iter, E0, td, tw, velocity_gauge
     integer :: u
     nsub = -1
     dt = -1
     max_iter = -1
+    velocity_gauge = .true.
+    E0 = -1
+    td = -1
+    tw = -1
     open(newunit=u, file="input_tddft", status="old")
     read(u,nml=domain)
     close(u)
@@ -430,6 +435,9 @@ contains
     end if
     if (dt < 0) call stop_error("dt is not specified")
     if (max_iter < 0) call stop_error("max_iter is not specified")
+    if (E0 < 0) call stop_error("E0 not specified")
+    if (td < 0) call stop_error("td not specified")
+    if (tw < 0) call stop_error("tw not specified")
     end subroutine
 
     subroutine read_params(Ng, T, dt, Ecut, nband)
