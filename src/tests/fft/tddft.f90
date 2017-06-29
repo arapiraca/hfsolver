@@ -375,7 +375,8 @@ do it = 1, max_iter
         print "(a, es22.14)", "Een_NL:   ", 0._dp
         print "(a, es22.14)", "Etot:     ", Etot
 
-        write(u,*) t, Etot, Ekin, Eee, E_xc, Enn, Een_core, Een_loc
+        write(u,*) t, Etot, Ekin, Eee, E_xc, Enn, Een_core, Een_loc, &
+            Ex, A
     end if
 
     ! Current
