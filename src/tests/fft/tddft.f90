@@ -319,6 +319,9 @@ do it = 1, max_iter
 
     Ex = E0 * exp(-(t-td)**2/(2*tw**2)) / (sqrt(2*pi)*tw)
     A = -E0 * (erf(sqrt(2._dp)*(t - td)/(2*tw))/2 + 1._dp/2)
+    call preal2fourier(Veff, psiG, commy, commz, Ng, nsub)
+    psiG = psiG * cutfn2
+    call pfourier2real(psiG, Veff, commy, commz, Ng, nsub)
     if (velocity_gauge) then
         ! velocity gauge
         Htot = Veff+A**2/2
