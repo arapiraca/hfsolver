@@ -399,6 +399,7 @@ do it = 1, max_iter
     ! Current
     current = 0
     do i = 1, nband
+        psi = corbitals(:,:,:,i)
         call preal2fourier(corbitals(:,:,:,i), psiG, commy, commz, Ng, nsub)
         do j = 1, 3
             call pfourier2real(i_*G(:,:,:,j)*psiG, dpsi(:,:,:,j), &
