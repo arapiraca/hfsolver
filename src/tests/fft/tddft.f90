@@ -331,9 +331,17 @@ do it = 1, max_iter
     do i = 1, nband
         psi = corbitals(:,:,:,i) * exp(-i_*Htot*dt/2)
         call preal2fourier(psi, psiG, commy, commz, Ng, nsub)
+        psiG = psiG * cutfn
         psiG = psiG * exp(-i_*HtotG*dt)
         call pfourier2real(psiG, psi, commy, commz, Ng, nsub)
-        corbitals(:,:,:,i) = psi * exp(-i_*Htot*dt/2)
+        psi = psi * exp(-i_*Htot*dt/2)
+
+        ! Apply a cutoff
+        call preal2fourier(psi, psiG, commy, commz, Ng, nsub)
+        psiG = psiG * cutfn
+        call pfourier2real(psiG, psi, commy, commz, Ng, nsub)
+
+        corbitals(:,:,:,i) = psi
     end do
     if (myid == 0) print *, "Square of norms of orbitals <psi|psi>:"
     do i = 1, nband
