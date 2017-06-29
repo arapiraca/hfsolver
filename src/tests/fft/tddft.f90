@@ -114,6 +114,10 @@ if (myid == 0) then
         dt/s2au, dt/s2au * 1e15_dp, dt
     print *, "Ecut =", Ecut, "a.u. =", Ecut * Ha2eV, "eV"
     print *, "nband =", nband
+    print *, "E0 =", E0
+    print *, "td =", td
+    print *, "tw =", tw
+    print *, "velocity_gauge =", velocity_gauge
     print *
     print *, "Calculated quantities:"
     print *, "rho = ", rho * density2gcm3, "g/cc = ", rho, "a.u."
