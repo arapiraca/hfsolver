@@ -2,18 +2,18 @@ module mpi2
 use types, only: dp
 use mpi, only: MPI_COMM_WORLD, MPI_INTEGER, MPI_DOUBLE_PRECISION, MPI_SUM, &
     mpi_comm_rank, mpi_comm_size, mpi_init, mpi_comm_split, mpi_barrier, &
-    MPI_MAX, MPI_STATUS_SIZE
+    MPI_MAX, MPI_STATUS_SIZE, MPI_LOGICAL
 use mpi_dispatch, only: mpi_bcast_floats, mpi_bcast_float, mpi_bcast_ints, &
     mpi_bcast_int, mpi_allreduce_float, mpi_finalize => mpi_finalize_dispatch, &
     mpi_send_floats, mpi_recv_floats, mpi_send_float, mpi_recv_float, &
-    mpi_bcast_floats2
+    mpi_bcast_floats2, mpi_bcast_logical
 implicit none
 private
 
 ! Implemented in the `mpi` module
 public MPI_COMM_WORLD, MPI_INTEGER, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_MAX, &
     mpi_comm_rank, mpi_comm_size, mpi_init, mpi_comm_split, mpi_barrier, &
-    MPI_STATUS_SIZE
+    MPI_STATUS_SIZE, MPI_LOGICAL
 
 ! Implemented in the `mpi_dispatch` and interface blocks below
 public mpi_bcast, mpi_finalize, mpi_allreduce, mpi_send, mpi_recv
@@ -25,6 +25,7 @@ interface mpi_bcast
     module procedure mpi_bcast_float
     module procedure mpi_bcast_ints
     module procedure mpi_bcast_int
+    module procedure mpi_bcast_logical
 end interface
 
 interface mpi_allreduce

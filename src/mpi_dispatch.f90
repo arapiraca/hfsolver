@@ -53,6 +53,14 @@ integer, intent(out) :: ierr
 call mpi_bcast(buffer, count_, datatype, root, comm, ierr)
 end subroutine
 
+subroutine mpi_bcast_logical(buffer, count_, datatype, root, comm, ierr)
+integer, intent(in) :: count_
+logical, intent(inout) :: buffer
+integer, intent(in) :: datatype, root, comm
+integer, intent(out) :: ierr
+call mpi_bcast(buffer, count_, datatype, root, comm, ierr)
+end subroutine
+
 ! mpi_allreduce
 
 subroutine mpi_allreduce_float(sendbuf, recvbuf, count_, datatype, op, comm, ierr)
