@@ -12,7 +12,8 @@ use ofdft, only: read_pseudo
 use pofdft_fft, only: pfft3_init, preal2fourier, pfourier2real, &
     real_space_vectors, reciprocal_space_vectors, calculate_myxyz, &
     pintegral, pintegralG, free_energy, free_energy_min, &
-    radial_potential_fourier, psum, pmaxval, distribute, poisson_kernel
+    radial_potential_fourier, psum, pmaxval, distribute, poisson_kernel, &
+    collate
 use openmp, only: omp_get_wtime
 use mpi2, only: mpi_finalize, MPI_COMM_WORLD, mpi_comm_rank, &
     mpi_comm_size, mpi_init, mpi_comm_split, MPI_INTEGER, &
@@ -36,7 +37,7 @@ real(dp), allocatable :: G(:,:,:,:), X(:,:,:,:), Xion(:,:), q(:), &
 complex(dp), allocatable :: dpsi(:,:,:,:), VeeG(:,:,:), VenG(:,:,:), &
     corbitals(:,:,:,:), tmp(:,:,:)
 real(dp) :: L(3), stress(6), current_avg(3), A
-integer :: i, j, k, u, u2
+integer :: i, j, k, u, u2, u3
 integer :: Ng(3)
 integer :: natom, nelec, nband, max_iter, field_dir
 logical :: velocity_gauge
@@ -311,6 +312,7 @@ if (myid == 0) print *, "Propagation"
 
 if (myid == 0) open(newunit=u, file="energies.txt", status="replace")
 if (myid == 0) open(newunit=u2, file="current.txt", status="replace")
+if (myid == 0) open(newunit=u3, file="current_density.txt", status="replace")
 corbitals = orbitals
 t = 0
 do it = 1, max_iter
@@ -399,7 +401,7 @@ do it = 1, max_iter
     end if
 
     ! Current
-    current_avg = 0
+    current = 0
     do i = 1, nband
         call preal2fourier(corbitals(:,:,:,i), psiG, commy, commz, Ng, nsub)
         do j = 1, 3
@@ -414,16 +416,24 @@ do it = 1, max_iter
                 print *, "INFO: current  max imaginary part:", &
                     maxval(aimag(tmp))
             end if
-            current(:,:,:,j) = real(tmp(:,:,:), dp)
-            current_avg(j) = current_avg(j) + occ(i)* &
-                pintegral(comm_all, L, current(:,:,:,j),Ng)/product(L)
+            current(:,:,:,j) = current(:,:,:,j) + occ(i) * real(tmp,dp)
         end do
     end do
+    do j = 1, 3
+        current_avg(j) = pintegral(comm_all, L, current(:,:,:,j),Ng)/product(L)
+    end do
     if (myid == 0) write(u2,*) t, current_avg
+    if (mod(it, 100) == 0) then
+        call collate(comm_all, myid, nsub, 0, current(:,:,:,1), tmp_global)
+        if (myid == 0) write(u3,*) tmp_global(:,:,Ng/2)
+        call collate(comm_all, myid, nsub, 0, current(:,:,:,2), tmp_global)
+        if (myid == 0) write(u3,*) tmp_global(:,:,Ng/2)
+    end if
 end do
 
 if (myid == 0) close(u)
 if (myid == 0) close(u2)
+if (myid == 0) close(u3)
 if (myid == 0) print *, "Done"
 
 call mpi_finalize(ierr)
