@@ -87,11 +87,7 @@ call mpi_bcast(field_dir, 1, MPI_INTEGER, 0, comm_all, ierr)
 
 G2cut = 2*Ecut
 G2cut2 = 4*G2cut
-if (any(Ng == -1)) then
-    Ng(1) = int(2*sqrt(G2cut2) * L(1) / (2*pi) + 1)
-    call adjust_Ng(Ng(1))
-    Ng(2:3) = Ng(1)
-end if
+call assert(all(Ng /= -1))
 
 Ng_local = Ng / nsub
 
@@ -423,11 +419,11 @@ do it = 1, max_iter
         current_avg(j) = pintegral(comm_all, L, current(:,:,:,j),Ng)/product(L)
     end do
     if (myid == 0) write(u2,*) t, current_avg
-    if (mod(it, 100) == 0) then
+    if (mod(it, 10) == 0) then
         call collate(comm_all, myid, nsub, 0, current(:,:,:,1), tmp_global)
-        if (myid == 0) write(u3,*) tmp_global(:,:,Ng/2)
+        if (myid == 0) write(u3,*) tmp_global(:,:,Ng(3)/2)
         call collate(comm_all, myid, nsub, 0, current(:,:,:,2), tmp_global)
-        if (myid == 0) write(u3,*) tmp_global(:,:,Ng/2)
+        if (myid == 0) write(u3,*) tmp_global(:,:,Ng(3)/2)
     end if
 end do
 
@@ -543,15 +539,5 @@ contains
     end do
     backspace(u)
     end function
-
-    subroutine adjust_Ng(Ng)
-    integer, intent(inout) :: Ng
-    integer :: LNPU(3)
-    do while (.true.)
-        call factor(Ng, LNPU)
-        if ((2**LNPU(1))*(3**LNPU(2))*(5**LNPU(3)) == Ng) return
-        Ng = Ng + 1
-    end do
-    end subroutine
 
 end program
