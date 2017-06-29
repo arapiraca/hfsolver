@@ -341,6 +341,10 @@ do it = 1, max_iter
         psiG = psiG * cutfn
         call pfourier2real(psiG, psi, commy, commz, Ng, nsub)
 
+        ! Normalize
+        norm = pintegral(comm_all, L, abs(psi)**2, Ng)
+        psi = psi / sqrt(norm)
+
         corbitals(:,:,:,i) = psi
     end do
     if (myid == 0) print *, "Square of norms of orbitals <psi|psi>:"
