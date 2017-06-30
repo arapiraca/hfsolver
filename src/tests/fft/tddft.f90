@@ -41,7 +41,7 @@ integer :: i, j, k, u, u2, u3
 integer :: Ng(3)
 integer :: natom, nelec, nband, max_iter, field_dir
 logical :: velocity_gauge
-real(dp) :: T_au, dt, rho, norm, w2, Vmin, Ekin, Etot, &
+real(dp) :: T_au, dt, rho, norm, normi, w2, Vmin, Ekin, Etot, &
     Eee, Een_loc, E_xc, Enn, Een_core, G2cut, G2cut2
 real(dp) :: rloc, C1, C2, Zion, Ecut, E0, Ex, t, td, tw
 real(dp), allocatable :: m(:)
@@ -332,19 +332,19 @@ do it = 1, max_iter
     do i = 1, nband
         psi = corbitals(:,:,:,i) * exp(-i_*Htot*dt/2)
         call preal2fourier(psi, psiG, commy, commz, Ng, nsub)
-        psiG = psiG * cutfn
+!        psiG = psiG * cutfn
         psiG = psiG * exp(-i_*HtotG*dt)
         call pfourier2real(psiG, psi, commy, commz, Ng, nsub)
         psi = psi * exp(-i_*Htot*dt/2)
 
         ! Apply a cutoff
-        call preal2fourier(psi, psiG, commy, commz, Ng, nsub)
-        psiG = psiG * cutfn
-        call pfourier2real(psiG, psi, commy, commz, Ng, nsub)
+!        call preal2fourier(psi, psiG, commy, commz, Ng, nsub)
+!        psiG = psiG * cutfn
+!        call pfourier2real(psiG, psi, commy, commz, Ng, nsub)
 
         ! Normalize
-        norm = pintegral(comm_all, L, abs(psi)**2, Ng)
-        psi = psi / sqrt(norm)
+!        norm = pintegral(comm_all, L, abs(psi)**2, Ng)
+!        psi = psi / sqrt(norm)
 
         corbitals(:,:,:,i) = psi
     end do
@@ -426,6 +426,19 @@ do it = 1, max_iter
         call collate(comm_all, myid, nsub, 0, current(:,:,:,2), tmp_global)
         if (myid == 0) write(u3,*) tmp_global(:,:,Ng(3)/2)
     end if
+
+    !if (myid == 0) print "(a6, a6, a10, a10)", "i", "j", "<i|j> (real, imag)"
+    !do i = 1, nband
+    !do j = 1, nband
+    !    psi = conjg(corbitals(:,:,:,i))*corbitals(:,:,:,j)
+    !    !psi = orbitals(:,:,:,i)*orbitals(:,:,:,j)
+    !    norm = pintegral(comm_all, L, real(psi,dp), Ng)
+    !    normi = pintegral(comm_all, L, aimag(psi), Ng)
+    !    if (myid == 0) print "(i6, i6, es10.2, es10.2)", &
+    !        i, j, norm, normi
+    !end do
+    !end do
+
 end do
 
 if (myid == 0) close(u)
