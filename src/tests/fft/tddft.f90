@@ -400,15 +400,12 @@ do it = 1, max_iter
     current = 0
     do i = 1, nband
         psi = corbitals(:,:,:,i)
-        call preal2fourier(corbitals(:,:,:,i), psiG, commy, commz, Ng, nsub)
+        call preal2fourier(psi, psiG, commy, commz, Ng, nsub)
         do j = 1, 3
             call pfourier2real(i_*G(:,:,:,j)*psiG, dpsi(:,:,:,j), &
                     commy, commz, Ng, nsub)
             tmp = i_/(2*natom) * (conjg(psi)*dpsi(:,:,:,j)- &
                 psi*conjg(dpsi(:,:,:,j)))
-            if (velocity_gauge) then
-                if (j == field_dir) tmp = tmp - A*ne/natom
-            end if
             if (maxval(abs(aimag(tmp))) > 1e-12_dp) then
                 print *, "INFO: current  max imaginary part:", &
                     maxval(aimag(tmp))
@@ -417,9 +414,12 @@ do it = 1, max_iter
         end do
     end do
     do j = 1, 3
+        if (velocity_gauge .and. j == field_dir) then
+            current(:,:,:,j) = current(:,:,:,j) - A*ne/natom
+        end if
         current_avg(j) = pintegral(comm_all, L, current(:,:,:,j),Ng)/product(L)
     end do
-    if (myid == 0) write(u2,*) t, current_avg, sum(occ)/product(L) * E0
+    if (myid == 0) write(u2,*) t, current_avg, 1/product(L) * E0
     if (mod(it, 10) == 0) then
         call collate(comm_all, myid, nsub, 0, current(:,:,:,1), tmp_global)
         if (myid == 0) write(u3,*) tmp_global(:,:,Ng(3)/2)
