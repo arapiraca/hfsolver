@@ -419,7 +419,7 @@ do it = 1, max_iter
     do j = 1, 3
         current_avg(j) = pintegral(comm_all, L, current(:,:,:,j),Ng)/product(L)
     end do
-    if (myid == 0) write(u2,*) t, current_avg
+    if (myid == 0) write(u2,*) t, current_avg, sum(occ)/product(L) * E0
     if (mod(it, 10) == 0) then
         call collate(comm_all, myid, nsub, 0, current(:,:,:,1), tmp_global)
         if (myid == 0) write(u3,*) tmp_global(:,:,Ng(3)/2)
