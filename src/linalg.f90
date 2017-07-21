@@ -2,8 +2,8 @@ module linalg
   use types, only: dp
   use lapack, only: dsyevd, dsygvd, ilaenv, zgetri, zgetrf, zheevd, &
        dgeev, zgeev, zhegvd, dgesv, zgesv, dgetrf, dgetri, dgelsy, zgelsy, &
-       dgesvd, zgesvd
-  use utils, only: stop_error
+       dgesvd, zgesvd, dgeqrf
+  use utils, only: stop_error, assert
   use constants, only: i_
   implicit none
   private
@@ -953,5 +953,28 @@ contains
        call stop_error("Aborting due to illegal matrix operation")
     end if
   end subroutine zassert_shape
+
+subroutine qr_fact(A, Q, R)
+! Computes a QR factorization of a real matrix A = Q*R
+real(dp), intent(in) :: A(:,:)
+real(dp), intent(out) :: Q(:,:), R(:,:)
+integer :: i, lwork, info
+real(dp) :: tau(min(size(A,1),size(A,2)))
+real(dp), allocatable :: work(:)
+allocate(work(1))
+call dgeqrf(size(A,1), size(A,2), A, size(A,1), tau, work, -1, info)
+call assert(info == 0)
+lwork = int(work(1))
+deallocate(work)
+allocate(work(lwork))
+call dgeqrf(size(A,1), size(A,2), A, size(A,1), tau, work, size(work), info)
+if (info /= 0) then
+   print *, "dgeqrf returned info = ", info
+   if (info < 0) then
+      print *, "the ", -info, "-th argument had an illegal value"
+   end if
+   call stop_error('dgeqrf error')
+endif
+end subroutine
 
 end module linalg
