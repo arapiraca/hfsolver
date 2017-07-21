@@ -337,6 +337,13 @@ interface
     REAL(dp) A(LDA,*),B(LDB,*),C(LDC,*)
     END SUBROUTINE
 
+    SUBROUTINE DGEQRF(M, N, A, LDA, TAU, WORK, LWORK, INFO)
+    import :: dp
+    INTEGER  INFO, LDA, LWORK, M, N
+    REAL(dp) A(LDA, *), TAU(*), WORK(*)
+    END SUBROUTINE
+
+
 end interface
 
 contains
