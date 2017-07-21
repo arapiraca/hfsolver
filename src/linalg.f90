@@ -959,15 +959,16 @@ subroutine qr_fact(A, Q, R)
 real(dp), intent(in) :: A(:,:)
 real(dp), intent(out) :: Q(:,:), R(:,:)
 integer :: i, lwork, info
-real(dp) :: tau(min(size(A,1),size(A,2)))
+real(dp) :: tau(min(size(A,1),size(A,2))), At(size(A,1), size(A,2))
 real(dp), allocatable :: work(:)
 allocate(work(1))
-call dgeqrf(size(A,1), size(A,2), A, size(A,1), tau, work, -1, info)
+At = A
+call dgeqrf(size(A,1), size(A,2), At, size(A,1), tau, work, -1, info)
 call assert(info == 0)
 lwork = int(work(1))
 deallocate(work)
 allocate(work(lwork))
-call dgeqrf(size(A,1), size(A,2), A, size(A,1), tau, work, size(work), info)
+call dgeqrf(size(A,1), size(A,2), At, size(A,1), tau, work, size(work), info)
 if (info /= 0) then
    print *, "dgeqrf returned info = ", info
    if (info < 0) then
@@ -975,16 +976,16 @@ if (info /= 0) then
    end if
    call stop_error('dgeqrf error')
 end if
-R = A
+R = At
 do i = 1, size(tau)-1
     R(i+1:,i) = 0
 end do
-call dorgqr(size(A,1), size(A,2), size(tau), A, size(A,1), tau, work, -1, info)
+call dorgqr(size(A,1), size(A,2), size(tau), At, size(A,1), tau, work, -1, info)
 call assert(info == 0)
 lwork = int(work(1))
 deallocate(work)
 allocate(work(lwork))
-call dorgqr(size(A,1), size(A,2), size(tau), A, size(A,1), tau, work, &
+call dorgqr(size(A,1), size(A,2), size(tau), At, size(A,1), tau, work, &
     size(work), info)
 if (info /= 0) then
    print *, "dgeqrf returned info = ", info
@@ -993,7 +994,7 @@ if (info /= 0) then
    end if
    call stop_error('dgeqrf error')
 end if
-Q = A
+Q = At
 end subroutine
 
 end module linalg
