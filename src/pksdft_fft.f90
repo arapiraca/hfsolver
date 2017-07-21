@@ -6,7 +6,7 @@ use pofdft_fft, only: preal2fourier, pfourier2real
 use arpack, only: peig
 implicit none
 private
-public solve_schroedinger, applyH
+public solve_schroedinger, applyH, solve_schroedinger2
 
 contains
 
@@ -18,6 +18,48 @@ real(dp), intent(in) :: G2(:,:,:), L(:), cutfn(:,:,:)
 real(dp), intent(out) :: eigs(:) ! eigs(nev)
 ! orbitals(Ng_local(1),Ng_local(2),Ng_local(3),nev)
 real(dp), intent(out) :: orbitals(:,:,:,:)
+
+real(dp), allocatable :: d(:), v(:,:)
+integer :: Ng_local(3), n
+real(dp) :: t1, t2
+logical :: verbose
+verbose = .false.
+Ng_local = Ng / nsub
+n = product(Ng_local)
+allocate(v(n,ncv), d(ncv))
+call cpu_time(t1)
+call peig(comm_all, myid, n, nev, ncv, "SA", av, d, v)
+call cpu_time(t2)
+eigs = d(:nev)+10
+orbitals = reshape(v(:,:nev), [Ng_local(1),Ng_local(2),Ng_local(3),nev]) &
+    * sqrt(product(Ng/L))
+if (myid == 0 .and. verbose) then
+    print *, "Arpack Time:", t2-t1
+end if
+
+contains
+
+    subroutine av(x, y)
+    ! Compute y = A*x
+    real(dp), intent(in) :: x(:)
+    real(dp), intent(out) :: y(:)
+    real(dp), dimension(Ng_local(1),Ng_local(2),Ng_local(3)) :: &
+        psi
+    psi = reshape(x, [Ng_local(1),Ng_local(2),Ng_local(3)])
+    call applyH(commy, commz, Ng, nsub, Vloc-10, G2, cutfn, psi)
+    y = reshape(psi, [product(Ng_local)])
+    end
+
+end subroutine
+
+subroutine solve_schroedinger2(myid, comm_all, commy, commz, Ng, nsub, Vloc, &
+        L, G2, cutfn, nev, ncv, eigs, orbitals)
+integer, intent(in) :: myid, comm_all, commy, commz, Ng(3), nsub(3), nev, ncv
+real(dp), intent(in) :: Vloc(:,:,:) ! Local effective potential
+real(dp), intent(in) :: G2(:,:,:), L(:), cutfn(:,:,:)
+real(dp), intent(out) :: eigs(:) ! eigs(nev)
+! orbitals(Ng_local(1),Ng_local(2),Ng_local(3),nev)
+real(dp), intent(inout) :: orbitals(:,:,:,:)
 
 real(dp), allocatable :: d(:), v(:,:)
 integer :: Ng_local(3), n

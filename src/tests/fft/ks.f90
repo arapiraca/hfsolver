@@ -19,7 +19,7 @@ use mpi2, only: mpi_finalize, MPI_COMM_WORLD, mpi_comm_rank, &
     mpi_barrier, mpi_bcast, MPI_DOUBLE_PRECISION
 use md, only: positions_bcc, positions_fcc
 use arpack, only: peig, eig
-use pksdft_fft, only: solve_schroedinger
+use pksdft_fft, only: solve_schroedinger, solve_schroedinger2
 use xc, only: xc_pz
 use mixings, only: mixing_linear, mixing_anderson
 use ewald_sums, only: ewald_box
@@ -331,8 +331,13 @@ contains
 
     ! Schroedinger:
     Veff = Vloc + reshape(x, [Ng_local(1),Ng_local(2),Ng_local(3)])
-    call solve_schroedinger(myid, comm_all, commy, commz, Ng, nsub, Veff, &
-            L, G2, cutfn, nev, ncv, eigs, orbitals)
+    if (it == 1) then
+        call solve_schroedinger(myid, comm_all, commy, commz, Ng, nsub, Veff, &
+                L, G2, cutfn, nev, ncv, eigs, orbitals)
+    else
+        call solve_schroedinger2(myid, comm_all, commy, commz, Ng, nsub, Veff, &
+                L, G2, cutfn, nev, ncv, eigs, orbitals)
+    end if
 
     sigma = T_au
     call fermi_dirac_smearing(eigs, sigma, real(nelec, dp), mu, occ)
