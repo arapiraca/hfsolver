@@ -343,6 +343,13 @@ interface
     REAL(dp) A(LDA, *), TAU(*), WORK(*)
     END SUBROUTINE
 
+    SUBROUTINE DORGQR(M, N, K, A, LDA, TAU, WORK, LWORK, INFO)
+    import :: dp
+    INTEGER  INFO, K, LDA, LWORK, M, N
+    REAL(dp) A(LDA,*), TAU(*), WORK(*)
+    END SUBROUTINE
+
+
 
 end interface
 

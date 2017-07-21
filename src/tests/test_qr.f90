@@ -17,6 +17,9 @@ do i = 1, n
     R(i,i) = lam(i)
 end do
 call assert(maxval(matmul(c, matmul(R, transpose(c))) - A) < 1e-12_dp)
-print *, c(:,1)
 call qr_fact(A, Q, R)
+A(:,1) = [1, 2, 3]
+A(:,2) = [2, 4, 2]
+A(:,3) = [3, 2, 5]
+call assert(maxval(matmul(Q, R) - A) < 1e-12_dp)
 end

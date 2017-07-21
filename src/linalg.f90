@@ -2,7 +2,7 @@ module linalg
   use types, only: dp
   use lapack, only: dsyevd, dsygvd, ilaenv, zgetri, zgetrf, zheevd, &
        dgeev, zgeev, zhegvd, dgesv, zgesv, dgetrf, dgetri, dgelsy, zgelsy, &
-       dgesvd, zgesvd, dgeqrf
+       dgesvd, zgesvd, dgeqrf, dorgqr
   use utils, only: stop_error, assert
   use constants, only: i_
   implicit none
@@ -975,6 +975,25 @@ if (info /= 0) then
    end if
    call stop_error('dgeqrf error')
 end if
+R = A
+do i = 1, size(tau)-1
+    R(i+1:,i) = 0
+end do
+call dorgqr(size(A,1), size(A,2), size(tau), A, size(A,1), tau, work, -1, info)
+call assert(info == 0)
+lwork = int(work(1))
+deallocate(work)
+allocate(work(lwork))
+call dorgqr(size(A,1), size(A,2), size(tau), A, size(A,1), tau, work, &
+    size(work), info)
+if (info /= 0) then
+   print *, "dgeqrf returned info = ", info
+   if (info < 0) then
+      print *, "the ", -info, "-th argument had an illegal value"
+   end if
+   call stop_error('dgeqrf error')
+end if
+Q = A
 end subroutine
 
 end module linalg
