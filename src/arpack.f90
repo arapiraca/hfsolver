@@ -4,7 +4,7 @@ use types, only: dp
 use utils, only: stop_error
 implicit none
 private
-public eig, peig
+public eig, peig, mul_matrix_vector
 
 interface
     subroutine mul_matrix_vector(x, y)
