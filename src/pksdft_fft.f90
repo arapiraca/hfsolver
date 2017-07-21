@@ -54,6 +54,7 @@ end subroutine
 
 subroutine solve_schroedinger2(myid, comm_all, commy, commz, Ng, nsub, Vloc, &
         L, G2, cutfn, nev, ncv, eigs, orbitals)
+! Chebyshev filtering
 integer, intent(in) :: myid, comm_all, commy, commz, Ng(3), nsub(3), nev, ncv
 real(dp), intent(in) :: Vloc(:,:,:) ! Local effective potential
 real(dp), intent(in) :: G2(:,:,:), L(:), cutfn(:,:,:)
