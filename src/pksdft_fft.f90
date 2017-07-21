@@ -4,6 +4,7 @@ use types, only: dp
 use utils, only: assert, stop_error, clock, allocate_mold
 use pofdft_fft, only: preal2fourier, pfourier2real
 use arpack, only: peig, mul_matrix_vector
+use mpi2, only: MPI_DOUBLE_PRECISION, mpi_allreduce, MPI_SUM
 implicit none
 private
 public solve_schroedinger, applyH, solve_schroedinger2
@@ -100,7 +101,7 @@ real(dp), intent(out) :: eigs(:) ! eigs(nev)
 real(dp), intent(inout) :: orbitals(:,:,:,:)
 
 real(dp), allocatable :: d(:), v(:,:), v2(:,:)
-integer :: Ng_local(3), n
+integer :: Ng_local(3), n, i
 real(dp) :: t1, t2
 logical :: verbose
 verbose = .false.
@@ -115,6 +116,10 @@ v(:,:nev) = v2
 call cpu_time(t1)
 call peig(comm_all, myid, n, nev, ncv, "SA", av, d, v)
 call cpu_time(t2)
+do i = 1, nev
+    call av(v(:,i), v2(:,i))
+    d(i) = psum1(comm_all, v(:,i) * v2(:,i))
+end do
 eigs = d(:nev)+10
 orbitals = reshape(v(:,:nev), [Ng_local(1),Ng_local(2),Ng_local(3),nev]) &
     * sqrt(product(Ng/L))
@@ -136,6 +141,19 @@ contains
     end
 
 end subroutine
+
+
+real(dp) function psum1(comm, f) result(r)
+! Calculates the sum over 'f' in parallel, returns the answer on all
+! processors.
+integer, intent(in) :: comm
+real(dp), intent(in) :: f(:)
+real(dp) :: myr
+integer :: ierr
+myr = sum(f)
+call mpi_allreduce(myr, r, 1, MPI_DOUBLE_PRECISION, MPI_SUM, comm, ierr)
+end function
+
 
 
 subroutine applyH(commy, commz, Ng, nsub, Vloc, G2, cutfn, psi)
