@@ -99,7 +99,7 @@ real(dp), intent(out) :: eigs(:) ! eigs(nev)
 ! orbitals(Ng_local(1),Ng_local(2),Ng_local(3),nev)
 real(dp), intent(inout) :: orbitals(:,:,:,:)
 
-real(dp), allocatable :: d(:), v(:,:)
+real(dp), allocatable :: d(:), v(:,:), v2(:,:)
 integer :: Ng_local(3), n
 real(dp) :: t1, t2
 logical :: verbose
@@ -107,6 +107,11 @@ verbose = .false.
 Ng_local = Ng / nsub
 n = product(Ng_local)
 allocate(v(n,ncv), d(ncv))
+allocate(v2(n,nev))
+v2 = reshape(orbitals, [n,nev])
+v(:,:nev) = v2
+call chebyshev_filter(v(:,:nev), v2, 10, -11._dp, 6.7_dp, av)
+v(:,:nev) = v2
 call cpu_time(t1)
 call peig(comm_all, myid, n, nev, ncv, "SA", av, d, v)
 call cpu_time(t2)
