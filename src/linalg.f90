@@ -8,7 +8,7 @@ module linalg
   implicit none
   private
   public eig, eigvals, eigh, inv, solve, eye, det, lstsq, diag, trace, &
-       svdvals, svd
+       svdvals, svd, qr_fact
 
   ! eigenvalue/-vector problem for general matrices:
   interface eig
@@ -974,7 +974,7 @@ if (info /= 0) then
       print *, "the ", -info, "-th argument had an illegal value"
    end if
    call stop_error('dgeqrf error')
-endif
+end if
 end subroutine
 
 end module linalg

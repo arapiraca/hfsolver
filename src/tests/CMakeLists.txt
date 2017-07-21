@@ -78,6 +78,8 @@ ADDTEST(test_random)
 
 ADDTEST(test_linregress)
 
+ADDTEST(test_qr)
+
 ADDTEST(test_md)
 set_tests_properties(test_md PROPERTIES LABELS MD)
 ADDTEST(analyze_md)
