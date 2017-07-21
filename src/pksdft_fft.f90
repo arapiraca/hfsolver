@@ -3,7 +3,7 @@ use constants, only: pi
 use types, only: dp
 use utils, only: assert, stop_error, clock, allocate_mold
 use pofdft_fft, only: preal2fourier, pfourier2real
-use arpack, only: peig
+use arpack, only: peig, mul_matrix_vector
 implicit none
 private
 public solve_schroedinger, applyH, solve_schroedinger2
@@ -50,6 +50,43 @@ contains
     y = reshape(psi, [product(Ng_local)])
     end
 
+end subroutine
+
+
+subroutine chebyshev_filter(X, Y, m, a, b, HX)
+! Filter vectors in X by an `m` degree Chebyshev polynomial that dampens on the
+! interval [a,b], and the output filtered vectors in Y. Algorithm 4.3 in [1].
+!
+! [1] Zhou, Y., Saad, Y., Tiago, M. L., Chelikowsky, J. R. (2006).
+! Self-consistent-field calculations using Chebyshev-filtered subspace
+! iteration. Journal of Computational Physics, 219(1), 172–184.
+! http://doi.org/10.1016/j.jcp.2006.03.017
+real(dp), intent(in) :: X(:,:)
+real(dp), intent(out) :: Y(:,:)
+procedure(mul_matrix_vector) :: HX ! returns y = H*x
+integer, intent(in) :: m
+real(dp), intent(in) :: a, b
+real(dp), dimension(size(Y,1),size(Y,2)) :: X2, Ynew
+real(dp) :: c, e, sigma, sigma1, sigma2
+integer :: i, j
+X2 = X
+e = (b-a)/2; c = (b+a)/2 ! 1.
+sigma = e/(a-c) ! 2.
+sigma1 = sigma ! 3.
+do j = 1, size(X2, 2)
+    call HX(X2(:,j), Y(:,j)) ! 4.
+end do
+Y = (Y-c*X2)*sigma1/e ! 4.
+do i = 2, m ! 5.
+    sigma2 = 1/(2/sigma1-sigma) ! 6.
+    do j = 1, size(X2, 2)
+        call HX(X2(:,j), Ynew(:,j)) ! 7.
+    end do
+    Ynew = 2*(Ynew-c*Y)*sigma2/e - sigma*sigma2*X2 ! 7.
+    X2 = Y ! 8.
+    Y = Ynew ! 9.
+    sigma = sigma2 ! 10.
+end do ! 11.
 end subroutine
 
 subroutine solve_schroedinger2(myid, comm_all, commy, commz, Ng, nsub, Vloc, &
