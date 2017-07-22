@@ -29,4 +29,15 @@ A(:,2) = [2, 4, 2, 1]
 A(:,3) = [3, 2, 5, 8]
 call qr_fact(A, Q, R)
 call assert(maxval(matmul(Q, R) - A) < 1e-12_dp)
+deallocate(A,Q,R)
+
+m = 5
+n = 3
+allocate(A(m,n), Q(m,n), R(n,n))
+A(:,1) = [1, 2, 3, 8, 3]
+A(:,2) = [2, 4, 2, 1, 4]
+A(:,3) = [3, 2, 5, 8, 5]
+call qr_fact(A, Q, R)
+call assert(maxval(matmul(Q, R) - A) < 1e-12_dp)
+deallocate(A,Q,R)
 end
