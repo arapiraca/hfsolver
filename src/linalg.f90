@@ -958,9 +958,11 @@ subroutine qr_fact(A, Q, R)
 ! Computes a QR factorization of a real matrix A = Q*R
 real(dp), intent(in) :: A(:,:)
 real(dp), intent(out) :: Q(:,:), R(:,:)
-integer :: i, lwork, info
+integer :: i, lwork, info, K
 real(dp) :: tau(min(size(A,1),size(A,2))), At(size(A,1), size(A,2))
 real(dp), allocatable :: work(:)
+call assert(size(A,1) >= size(A,2))
+K = min(size(A,1),size(A,2))
 allocate(work(1))
 At = A
 call dgeqrf(size(A,1), size(A,2), At, size(A,1), tau, work, -1, info)
@@ -976,7 +978,7 @@ if (info /= 0) then
    end if
    call stop_error('dgeqrf error')
 end if
-R = At
+R = At(:K,:)
 do i = 1, size(tau)-1
     R(i+1:,i) = 0
 end do
