@@ -45,6 +45,8 @@ real(dp) :: rloc, C1, C2, Zion, Ecut
 real(dp), allocatable :: m(:)
 integer :: nev, ncv, arpack_ncv, scf_max_iter, it
 real(dp) :: scf_L2_eps, scf_eig_eps, scf_alpha
+integer, parameter :: mixing_scheme_linear = 1, mixing_scheme_anderson = 2
+integer :: mixing_scheme
 
 !  parallel variables
 integer :: comm_all, commy, commz, nproc, ierr, nsub(3), Ng_local(3)
@@ -69,7 +71,7 @@ call mpi_bcast(L, size(L), MPI_DOUBLE_PRECISION, 0, comm_all, ierr)
 
 if (myid == 0) then
     call read_input(nproc, Ng, nsub, T_au, dt, Ecut, nband, arpack_ncv, &
-        scf_max_iter, scf_L2_eps, scf_eig_eps, scf_alpha)
+        scf_max_iter, scf_L2_eps, scf_eig_eps, scf_alpha, mixing_scheme)
 end if
 call mpi_bcast(Ng, size(Ng), MPI_INTEGER, 0, comm_all, ierr)
 call mpi_bcast(nband, 1, MPI_INTEGER, 0, comm_all, ierr)
@@ -78,6 +80,7 @@ call mpi_bcast(scf_max_iter, 1, MPI_INTEGER, 0, comm_all, ierr)
 call mpi_bcast(scf_L2_eps, 1, MPI_DOUBLE_PRECISION, 0, comm_all, ierr)
 call mpi_bcast(scf_eig_eps, 1, MPI_DOUBLE_PRECISION, 0, comm_all, ierr)
 call mpi_bcast(scf_alpha, 1, MPI_DOUBLE_PRECISION, 0, comm_all, ierr)
+call mpi_bcast(mixing_scheme, 1, MPI_INTEGER, 0, comm_all, ierr)
 call mpi_bcast(nsub, size(nsub), MPI_INTEGER, 0, comm_all, ierr)
 call mpi_bcast(T_au, 1, MPI_DOUBLE_PRECISION, 0, comm_all, ierr)
 call mpi_bcast(dt, 1, MPI_DOUBLE_PRECISION, 0, comm_all, ierr)
@@ -290,10 +293,18 @@ ncv = arpack_ncv
 allocate(eigs(nev), orbitals(Ng_local(1),Ng_local(2),Ng_local(3),nev))
 Vee_xc = 0
 it = 0
-!call mixing_anderson &
-call mixing_linear &
-    (Ffunc, integral, reshape(Vee_xc, [product(Ng_local)]), &
-    nband, scf_max_iter, scf_alpha, scf_L2_eps, scf_eig_eps, tmp)
+select case (mixing_scheme)
+    case (mixing_scheme_linear)
+        call mixing_linear &
+            (Ffunc, integral, reshape(Vee_xc, [product(Ng_local)]), &
+            nband, scf_max_iter, scf_alpha, scf_L2_eps, scf_eig_eps, tmp)
+    case (mixing_scheme_anderson)
+        call mixing_anderson &
+            (Ffunc, integral, reshape(Vee_xc, [product(Ng_local)]), &
+            nband, scf_max_iter, scf_alpha, scf_L2_eps, scf_eig_eps, tmp)
+    case default
+        call stop_error("Mixing scheme not supported")
+end select
 !Vee_xc = reshape(tmp, [Ng_local(1),Ng_local(2),Ng_local(3)])
 
 if (myid == 0) call save_eigs_json("output.json", eigs, occ)
@@ -396,9 +407,10 @@ contains
 
 
     subroutine read_input(nproc, Ng, nsub, T, dt, Ecut, nband, arpack_ncv, &
-            scf_max_iter, scf_L2_eps, scf_eig_eps, scf_alpha)
+            scf_max_iter, scf_L2_eps, scf_eig_eps, scf_alpha, mixing_scheme)
     integer, intent(in) :: nproc
     integer, intent(out) :: Ng(3), nsub(3), nband, arpack_ncv, scf_max_iter
+    integer, intent(out) :: mixing_scheme
     real(dp), intent(out) :: scf_L2_eps, scf_eig_eps, scf_alpha
     real(dp), intent(out) :: T  ! in a.u.
     real(dp), intent(out) :: dt ! in a.u.
@@ -406,7 +418,7 @@ contains
     integer :: LNPU(3)
     real(dp) :: T_eV, ecut_eV
     namelist /domain/ Ng, nsub, T_eV, dt, ecut, ecut_eV, nband, arpack_ncv, &
-        scf_max_iter, scf_L2_eps, scf_eig_eps, scf_alpha
+        scf_max_iter, scf_L2_eps, scf_eig_eps, scf_alpha, mixing_scheme
     integer :: u
     Ng = -1
     T_eV = -1
@@ -419,6 +431,7 @@ contains
     scf_L2_eps = -1
     scf_eig_eps = -1
     scf_alpha = -1
+    mixing_scheme = -1
     open(newunit=u, file="input", status="old")
     read(u,nml=domain)
     close(u)
@@ -441,6 +454,7 @@ contains
     if (scf_L2_eps < 0) scf_L2_eps = 1e-5_dp
     if (scf_eig_eps < 0) scf_eig_eps = 1e-9_dp
     if (scf_alpha < 0) scf_alpha = 0.3_dp
+    if (mixing_scheme < 0) mixing_scheme = mixing_scheme_linear
 
     T = T_eV / Ha2eV  ! Convert from eV to a.u.
     endsubroutine
