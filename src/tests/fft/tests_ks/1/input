@@ -9,4 +9,5 @@
   scf_eig_eps = 5e-7
   scf_alpha = 1.0
   scf_max_iter = 10
+  mixing_scheme = 2
 /
