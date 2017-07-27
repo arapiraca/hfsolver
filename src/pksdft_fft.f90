@@ -18,6 +18,7 @@ real(dp), intent(in) :: G2(:,:,:), L(:), cutfn(:,:,:)
 real(dp), intent(out) :: eigs(:) ! eigs(nev)
 ! orbitals(Ng_local(1),Ng_local(2),Ng_local(3),nev)
 real(dp), intent(out) :: orbitals(:,:,:,:)
+real(dp), parameter :: Eshift = 10
 
 real(dp), allocatable :: d(:), v(:,:)
 integer :: Ng_local(3), n
@@ -30,7 +31,7 @@ allocate(v(n,ncv), d(ncv))
 call cpu_time(t1)
 call peig(comm_all, myid, n, nev, ncv, "SA", av, d, v)
 call cpu_time(t2)
-eigs = d(:nev)+10
+eigs = d(:nev)+Eshift
 orbitals = reshape(v(:,:nev), [Ng_local(1),Ng_local(2),Ng_local(3),nev]) &
     * sqrt(product(Ng/L))
 if (myid == 0 .and. verbose) then
@@ -46,7 +47,7 @@ contains
     real(dp), dimension(Ng_local(1),Ng_local(2),Ng_local(3)) :: &
         psi
     psi = reshape(x, [Ng_local(1),Ng_local(2),Ng_local(3)])
-    call applyH(commy, commz, Ng, nsub, Vloc-10, G2, cutfn, psi)
+    call applyH(commy, commz, Ng, nsub, Vloc-Eshift, G2, cutfn, psi)
     y = reshape(psi, [product(Ng_local)])
     end
 
